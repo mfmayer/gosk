@@ -2,12 +2,11 @@
 
 > ⚠️ Please note that gosk is currently in a very early stage of development. As such, there may be bugs or incomplete features. Your understanding and patience are much appreciated. I warmly welcome any [contributions](#contributing), suggestions, or bug reports to help improve the module.
 
-
-The Go Semantic Kernel (gosk) is a Go module that is a clone of Microsoft's Semantic Kernel, but for Go, instead of Python/C#. It is designed to simplify the integration of OpenAI's API and large language models into applications. 
+Go Semantic Kernel (gosk) is a Go module inspired by the Microsoft Semantic Kernel, originally designed to facilitate the integration of OpenAI's API and large language models in C# and Python applications. gosk extends this functionality to the Go programming language, thereby empowering Go developers to define and utilize AI skills and functions with ease, bringing the power of OpenAI's advanced language models to a broader programming community.
 
 Using prompt engineering, gosk enables developers to define AI skills and functions, which can then be easily utilized within their applications.
 
-See: <https://github.com/mfmayer/semantic-kernel>
+See also: <https://github.com/microsoft/semantic-kernel>
 
 ## Installation
 
