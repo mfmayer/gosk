@@ -14,9 +14,6 @@ import (
 	"github.com/mfmayer/gosk/utils"
 )
 
-//go:embed assets/skills/*
-var embeddedSkillsDir embed.FS
-
 // SemanticKernel
 type SemanticKernel struct {
 	chatClient *gopenai.ChatClient
@@ -54,7 +51,7 @@ func NewKernel(opts ...newKernelOption) (kernel *SemanticKernel, err error) {
 	return
 }
 
-func (k *SemanticKernel) ImportSkill(name string) (skill Skill, err error) {
+func (k *SemanticKernel) ImportSkill(name string, embeddedSkillsDir embed.FS) (skill Skill, err error) {
 	fs, err := fs.Sub(embeddedSkillsDir, "assets/skills")
 	if err != nil {
 		return
