@@ -14,4 +14,4 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 )
 
-replace github.com/mfmayer/gopenai => ../gopenai
+// replace github.com/mfmayer/gopenai => ../gopenai
