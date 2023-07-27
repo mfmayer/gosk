@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Schema defintion for a semantic skill function.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the function."
+    },
+    "description": {
+      "type": "string",
+      "description": "The description of the function."
+    },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Comma separated names of generators that support this function. First found generator is used, so preferred generator should be first in the list."
+        }
+      },
+      "additionalProperties": true
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "The description of the parameter."
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of the parameter.",
+            "enum": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "array",
+              "object"
+            ]
+          },
+          "enum": {
+            "type": "array",
+            "description": "The list of possible values for the parameter.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the parameter is required."
+          },
+          "default": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "array",
+              "object"
+            ],
+            "description": "The default value of the parameter."
+          }
+        }
+      }
+    }
+  }
+}

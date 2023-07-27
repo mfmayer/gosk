@@ -1,0 +1,1 @@
+api.openweathermap.org/data/2.5/forecast?lat=48.771&lon=9.180&appid={{$dotenv OPENWEATHERMAP_API_KEY}}

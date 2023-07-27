@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/skill-schema-v01.json",
+  "name": "writer",
+  "description": "A writer skill for writing and transforming text (e.g. translate)"
+}

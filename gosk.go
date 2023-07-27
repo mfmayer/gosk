@@ -1,140 +1,168 @@
 package gosk
 
 import (
-	"bytes"
-	"embed"
-	"encoding/json"
-	"io/fs"
-	"io/ioutil"
-	"path/filepath"
-	"text/template"
+	"errors"
+	"fmt"
+	"strings"
 
-	"github.com/mfmayer/gopenai"
-	"github.com/mfmayer/gosk/internal/skillconfig"
-	"github.com/mfmayer/gosk/utils"
+	"github.com/mfmayer/gosk/pkg/llm"
 )
-
-//go:embed assets/skills/*
-var embeddedSkillsDir embed.FS
 
 // SemanticKernel
 type SemanticKernel struct {
-	chatClient *gopenai.ChatClient
+	// generators map[string]llm.Generator
+	skills map[string]*Skill
 }
 
 type newKernelOption func(*newKernelOptions)
 
 type newKernelOptions struct {
-	openAIKey string
 }
 
 // WithOpenAIKey to use this OpenAI key when creating a new semantic kernel, otherwise it's tried to get the key from "OPENAI_API_KEY" environment variable or .env file in current working directory
-func WithOpenAIKey(key string) newKernelOption {
-	return func(opt *newKernelOptions) {
-		opt.openAIKey = key
-	}
-}
+// func WithOpenAIKey(key string) newKernelOption {
+// 	return func(opt *newKernelOptions) {
+// 		opt.openAIKey = key
+// 	}
+// }
 
 // NewKernel creates new kernel and tries to retrieve the OpenAI key from "OPENAI_API_KEY" environment variable or .env file in current working directory
-func NewKernel(opts ...newKernelOption) (kernel *SemanticKernel, err error) {
+func NewKernel(opts ...newKernelOption) *SemanticKernel {
 	options := &newKernelOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
-	if options.openAIKey == "" {
-		options.openAIKey, err = utils.GetOpenAIKey()
-		if err != nil {
+
+	kernel := &SemanticKernel{
+		skills: map[string]*Skill{},
+	}
+	return kernel
+}
+
+// AddSkillsMap adds skills map to the kernel with adopted keys as skill names
+func (sk *SemanticKernel) AddSkillsMap(skills map[string]*Skill) (err error) {
+	for skillName, skill := range skills {
+		err = errors.Join(err, sk.addSkill(skillName, skill))
+	}
+	return
+}
+
+// AddSkills adds skills to the kernel with their individual names
+func (sk *SemanticKernel) AddSkills(skills ...*Skill) (err error) {
+	for _, skill := range skills {
+		err = errors.Join(err, sk.addSkill(skill.Name, skill))
+	}
+	return nil
+}
+
+func (sk *SemanticKernel) addSkill(name string, skill *Skill) error {
+	// sanitize skill and parameter names
+	if skill == nil {
+		return fmt.Errorf("skill `%s` is nil", name)
+	}
+	if skill.Name == "" {
+		skill.Name = name
+	}
+	for functionName, function := range skill.Functions {
+		if function.Name == "" {
+			function.Name = functionName
+		}
+		for parameterName, parameter := range function.Parameters {
+			if parameter.Name == "" {
+				parameter.Name = parameterName
+			}
+		}
+	}
+	// check if skill already exists
+	if _, ok := sk.skills[name]; ok {
+		return fmt.Errorf("skill `%s` already added", name)
+	}
+	sk.skills[name] = skill
+	return nil
+}
+
+// FindSkill finds a skill by name and returns it or an error if not found
+func (sk *SemanticKernel) FindSkill(skillName string) (skill *Skill, ok bool) {
+	if skill, ok := sk.skills[skillName]; ok {
+		return skill, true
+	}
+	return nil, false
+}
+
+// FindFunction finds a function in a skill by name and returns it or an error if not found
+func (sk *SemanticKernel) FindFunction(skillName string, skillFunction string) (function *Function, ok bool) {
+	if skill, ok := sk.FindSkill(skillName); ok {
+		if function, ok := skill.Functions[skillFunction]; ok {
+			return function, true
+		}
+	}
+	return nil, false
+}
+
+// FindFunctions finds functions with path notation (`skillName.functionName`) and returns them or an error if any function is not found
+func (sk *SemanticKernel) FindFunctions(functionPaths ...string) (functions []*Function, err error) {
+	if len(functionPaths) == 0 {
+		return nil, fmt.Errorf("no function path given")
+	}
+	functions = make([]*Function, 0, len(functionPaths))
+	pathsNotFound := []string{}
+	for _, fp := range functionPaths {
+		fps := strings.Split(fp, ".")
+		if len(fps) != 2 {
+			pathsNotFound = append(pathsNotFound, fp)
+			continue
+		}
+		if function, ok := sk.FindFunction(fps[0], fps[1]); ok {
+			functions = append(functions, function)
+		} else {
+			pathsNotFound = append(pathsNotFound, fp)
+		}
+	}
+	if len(pathsNotFound) > 0 {
+		err = fmt.Errorf("functions %v not found", pathsNotFound)
+	}
+	return
+}
+
+// Call a skill function with given name and parameters and returns the response and/or an error
+// The kernel also links the input as predecessor to the response
+func (sk *SemanticKernel) Call(skillName string, skillFunction string, input llm.Content) (response llm.Content, err error) {
+	if skill, ok := sk.skills[skillName]; ok {
+		response, err = skill.Call(skillFunction, input)
+		if response != nil {
+			response.WithPredecessor(input)
+		}
+		return
+	}
+	return nil, fmt.Errorf("skill `%s` not found", skillName)
+}
+
+// ChainCall to call multiple functions in a row
+// context is passed to all functions and context["data"] is updated with the response of each function
+func (sk *SemanticKernel) ChainCall(context llm.Content, functions ...*Function) (response llm.Content, err error) {
+	for _, function := range functions {
+		if response, err = function.Call(context); err != nil {
+			err = fmt.Errorf("error calling function `%s`: %w", function.Name, err)
 			return
 		}
-	}
-	cClient := gopenai.NewChatClient(options.openAIKey)
-	kernel = &SemanticKernel{
-		chatClient: cClient,
+		context.WithData(response.Data())
 	}
 	return
 }
 
-func (k *SemanticKernel) ImportSkill(name string) (skill Skill, err error) {
-	fs, err := fs.Sub(embeddedSkillsDir, "assets/skills")
-	if err != nil {
-		return
-	}
-	return k.importSkill(fs, name)
-}
+// func (k *SemanticKernel) ImportSkill(name string) (skill Skill, err error) {
+// 	fs, err := fs.Sub(embeddedSkillsDir, "assets/skills")
+// 	if err != nil {
+// 		return
+// 	}
 
-func (k *SemanticKernel) importSkill(fsys fs.FS, skillName string) (skill Skill, err error) {
-	skill = Skill{}
-	err = fs.WalkDir(fsys, skillName, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() && path != skillName {
-			skPromptPath := filepath.Join(path, "skprompt.txt")
-			skConfigPath := filepath.Join(path, "config.json")
-			if !utils.FilesExist(fsys, skPromptPath) {
-				// ignore path when there is no prompt (config.json is optional)
-				return nil
-			}
-			// read skill prompt template
-			skprompt, err := template.ParseFS(fsys, skPromptPath)
-			_ = skprompt
-			if err != nil {
-				return err
-			}
-			// create default config and read optional skill config file
-			sConfig := skillconfig.DefaultSkillConfig()
-			jsonFile, err := fsys.Open(skConfigPath)
-			if err == nil {
-				defer jsonFile.Close()
-				sConfigBytes, _ := ioutil.ReadAll(jsonFile)
-				_ = json.Unmarshal(sConfigBytes, &sConfig)
-				// if err != nil {
-				// 	return err
-				// }
-			}
-			// use path base name as skill function name
-			skillFunctionName := filepath.Base(path)
-			skill[skillFunctionName] = k.createSkillFunction(skprompt, sConfig)
-		}
-		return nil
-	})
-	return
-}
+// 	// return k.importSkill(fs, name)
+// }
 
-func (k *SemanticKernel) createSkillFunction(template *template.Template, config skillconfig.SkillConfig) (skillFunc SkillFunction) {
-	paramMap := map[string]*string{}
-	paramArray := []*string{}
-	for _, p := range config.Input.Parameters {
-		param := p.DefaultValue
-		paramMap[p.Name] = &param
-		paramArray = append(paramArray, &param)
-	}
-
-	skillFunc = func(parameters ...string) (response string, err error) {
-		for i, param := range parameters {
-			if i < len(paramArray) {
-				*paramArray[i] = param
-			}
-		}
-
-		var promptBuffer bytes.Buffer
-		template.Execute(&promptBuffer, paramMap)
-
-		chatPrompt := gopenai.ChatPrompt{
-			Model: "gpt-3.5-turbo",
-			Messages: []*gopenai.Message{
-				{
-					Role:    "user",
-					Content: promptBuffer.String(),
-				},
-			},
-		}
-		var completion *gopenai.ChatCompletion
-		completion, err = k.chatClient.GetChatCompletion(&chatPrompt)
-		if err == nil {
-			response = completion.Choices[0].Message.Content
-		}
-		return
-	}
-	return
-}
+// func (k *SemanticKernel) ImportSkill(name string) (skill Skill, err error) {
+// 	fs, err := fs.Sub(embeddedSkillsDir, "assets/skills")
+// 	if err != nil {
+// 		return
+// 	}
+// 	// return k.importSkill(fs, name)
+// }

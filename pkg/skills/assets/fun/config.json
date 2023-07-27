@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/skill-schema-v01.json",
+  "name": "fun",
+  "description": "A fun skill for creating jokes and other fun stuff."
+}
