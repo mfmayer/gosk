@@ -1,15 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/function-schema-v01.json",
   "name": "Joke",
-  "description": "Generate a funny joke",
-  "generator": {
-    "name": "gpt35,default",
-    "max_tokens": 1000,
-    "temperature": 0.9,
-    "top_p": 0.0,
-    "presence_penalty": 0.0,
-    "frequency_penalty": 0.0
-  },
+  "description": "Generate a funny joke.",
   "parameters": {
     "data": {
       "description": "Joke subject",
@@ -19,5 +11,6 @@
       "description": "Joke style",
       "defaultValue": ""
     }
-  }
+  },
+  "generator": "gpt-3.5-turbo"
 }

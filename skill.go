@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"strings"
 
 	"github.com/mfmayer/gosk/pkg/llm"
-	"golang.org/x/exp/slices"
 )
 
 // Skill defines and holds a collection of Skill Functions that can be planned and called by the semantic kernel
@@ -31,12 +30,12 @@ func (s *Skill) Call(functionName string, input llm.Content) (response llm.Conte
 	// Check input for required parameters and eventually set default values
 	for _, parameter := range function.Parameters {
 		if parameter.Default != nil {
-			if _, ok := input.Option(parameter.Name); !ok {
+			if input.Option(parameter.Name) == nil {
 				input.With(parameter.Name, parameter.Default)
 			}
 		}
 		if parameter.Required {
-			if _, ok := input.Option(parameter.Name); !ok {
+			if input.Option(parameter.Name) == nil {
 				err = errors.Join(err, fmt.Errorf("parameter `%s` is required", parameter.Name))
 			}
 		}
@@ -48,10 +47,15 @@ func (s *Skill) Call(functionName string, input llm.Content) (response llm.Conte
 	return function.Call(input)
 }
 
+type skillConfig struct {
+	*Skill
+	Generators map[string]llm.GeneratorConfig `json:"generators"`
+}
+
 // ParseSemanticSkillFromFS parses a skill from a file system
 // fsys is the file system to parse the skill from (see assets/skills for examples)
 // generators is a map of generators that can be used by the skill
-func ParseSemanticSkillFromFS(fsys fs.FS, generators map[string]llm.Generator) (skill *Skill, err error) {
+func ParseSemanticSkillFromFS(fsys fs.FS, getGenerators func(generatorConfigs map[string]llm.GeneratorConfig) (llm.GeneratorMap, error)) (skill *Skill, err error) {
 	// open config file
 	file, err := fsys.Open("config.json")
 	if err != nil {
@@ -61,21 +65,32 @@ func ParseSemanticSkillFromFS(fsys fs.FS, generators map[string]llm.Generator) (
 	defer file.Close()
 
 	// read config file
-	data, err := ioutil.ReadAll(file)
+	data, err := io.ReadAll(file)
 	if err != nil {
 		err = fmt.Errorf("reading `config.json` failed: %w", err)
 		return
 	}
 
 	// unmarshal config file
-	var s Skill
-	err = json.Unmarshal(data, &s)
+	var skillConfig skillConfig
+	err = json.Unmarshal(data, &skillConfig)
 	if err != nil {
 		err = fmt.Errorf("unmarshalling `config.json` failed: %w", err)
 		return
 	}
-	skill = &s
+	skill = skillConfig.Skill
+	if skill == nil {
+		err = fmt.Errorf("invalid skill `config.json`")
+		return
+	}
 	skill.Functions = map[string]*Function{}
+
+	// get configured generators
+	generators, err := getGenerators(skillConfig.Generators)
+	if err != nil {
+		err = fmt.Errorf("getting generators failed: %w", err)
+		return
+	}
 
 	// find and parse skill functions in sub directories
 	entries, err := fs.ReadDir(fsys, ".")
@@ -87,10 +102,6 @@ func ParseSemanticSkillFromFS(fsys fs.FS, generators map[string]llm.Generator) (
 		if !d.IsDir() {
 			continue
 		}
-		// // skip root directory
-		// if d.path == "." {
-		// 	continue
-		// }
 		// create subFS for subdirectory
 		subFS, err := fs.Sub(fsys, d.Name())
 		if err != nil {
@@ -107,46 +118,5 @@ func ParseSemanticSkillFromFS(fsys fs.FS, generators map[string]llm.Generator) (
 		skill.Functions[strings.ToLower(d.Name())] = function
 	}
 
-	return
-}
-
-// ParseSemanticSkillsFromFS parses all skills from a file system
-// File system should be a directory with subdirectories for each skill
-func ParseSemanticSkillsFromFS(fsys fs.FS, generators map[string]llm.Generator, dirs ...string) (skills map[string]*Skill, err error) {
-	// create slice for skills
-	skills = map[string]*Skill{}
-	// fsys := os.DirFS(path)
-	entries, err := fs.ReadDir(fsys, ".")
-	if err != nil {
-		err = fmt.Errorf("reading file system failed: %w", err)
-		return
-	}
-
-	for _, d := range entries {
-		// skip files
-		if !d.IsDir() {
-			continue
-		}
-		if len(dirs) > 0 {
-			// if dirs are given, skip directories that are not in dirs
-			if !slices.Contains(dirs, d.Name()) {
-				continue
-			}
-		}
-		// create subFS for subdirectory
-		subFS, err := fs.Sub(fsys, d.Name())
-		if err != nil {
-			// skip subdirectory if it is not possible to create subFS
-			continue
-		}
-		// create skill from subFS
-		skill, err := ParseSemanticSkillFromFS(subFS, generators)
-		if err != nil {
-			// skip subdirectory if it is not possible to create skill
-			continue
-		}
-		// add skill to skills with its directory name as key
-		skills[strings.ToLower(d.Name())] = skill
-	}
 	return
 }

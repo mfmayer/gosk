@@ -1,4 +1,4 @@
-package gptgenerator
+package gpt
 
 import (
 	"errors"
@@ -28,8 +28,8 @@ func Content2Message(content llm.Content) (msg *gopenai.Message, err error) {
 		return
 	}
 	msg = &gopenai.Message{}
-	role, roleOK := content.RoleOption()
-	if roleOK {
+	role := content.RoleOption()
+	if role != llm.RoleEmpty {
 		switch role {
 		case llm.RoleSystem:
 			msg.Role = gopenai.RoleSystem
@@ -49,7 +49,7 @@ func Content2Message(content llm.Content) (msg *gopenai.Message, err error) {
 	if role == llm.RoleFunctionCall {
 		msg.FunctionCall = &gopenai.FunctionCall{}
 		msg.FunctionCall.Arguments = content.StringData()
-		if name, ok := content.NameOption(); ok {
+		if name := content.NameOption(); name != "" {
 			msg.FunctionCall.Name = name
 		} else {
 			err = errors.New("content for function call is not designated")
@@ -58,7 +58,7 @@ func Content2Message(content llm.Content) (msg *gopenai.Message, err error) {
 		return
 	}
 	msg.Content = content.StringData()
-	if name, ok := content.NameOption(); ok {
+	if name := content.NameOption(); name != "" {
 		msg.Name = name
 	}
 	return

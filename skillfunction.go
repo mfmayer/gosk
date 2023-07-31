@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"strings"
 	"text/template"
 
 	"github.com/mfmayer/gosk/pkg/llm"
-	"github.com/tidwall/gjson"
 )
 
 type Type string
@@ -49,6 +47,11 @@ type Function struct {
 	Call func(input llm.Content) (output llm.Content, err error) `json:"-"`
 }
 
+type functionConfig struct {
+	*Function
+	Generator string `json:"generator"`
+}
+
 // ParseFunctionFromFS finds "config.json" with function comfiguration.
 // Prompt templates will be created from "*.tmpl" files with at least "skprompt.tmpl" is needed
 func ParseSemanticFunctionFromFS(fsys fs.FS, generators llm.GeneratorMap) (function *Function, err error) {
@@ -68,9 +71,9 @@ func ParseSemanticFunctionFromFS(fsys fs.FS, generators llm.GeneratorMap) (funct
 	}
 
 	// unmarshal config file
-	var f Function
-	err = json.Unmarshal(data, &f)
-	function = &f
+	var functionConfig functionConfig
+	err = json.Unmarshal(data, &functionConfig)
+	function = functionConfig.Function
 	if err != nil {
 		err = fmt.Errorf("unmarshalling `config.json` failed: %w", err)
 		return
@@ -82,23 +85,9 @@ func ParseSemanticFunctionFromFS(fsys fs.FS, generators llm.GeneratorMap) (funct
 	// }
 
 	// check if supported generator is avalilable
-	generatorConfig, ok := gjson.Get(string(data), "generator").Value().(map[string]interface{})
-	if !ok {
-		err = fmt.Errorf("no valid `generator` config found in `config.json`")
-		return
-	}
-	var generator llm.Generator
-	if supportedGenerators, ok := generatorConfig["name"]; ok {
-		if supportedGeneratorsString, ok := supportedGenerators.(string); ok {
-			generatorList := strings.Split(supportedGeneratorsString, ",")
-			for i, generator := range generatorList {
-				generatorList[i] = strings.TrimSpace(generator)
-			}
-			generator, _ = generators.FindAny(generatorList...)
-		}
-	}
-	if generator == nil {
-		err = fmt.Errorf("no supporting generator found")
+	generator, ok := generators[functionConfig.Generator]
+	if !ok || generator == nil {
+		err = fmt.Errorf("generator \"%s\" not found for function \"%s\"", functionConfig.Generator, function.Name)
 		return
 	}
 

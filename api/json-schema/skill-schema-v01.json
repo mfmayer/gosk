@@ -10,6 +10,15 @@
     "description": {
       "type": "string",
       "description": "The description of the skill."
+    },
+    "generators": {
+      "type": "object",
+      "description": "Map of generators used by the skill functions.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Generator settings needed to create the generator.",
+        "additionalProperties": true
+      }
     }
   }
 }

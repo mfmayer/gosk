@@ -40,9 +40,22 @@ func NewKernel(opts ...newKernelOption) *SemanticKernel {
 }
 
 // AddSkillsMap adds skills map to the kernel with adopted keys as skill names
-func (sk *SemanticKernel) AddSkillsMap(skills map[string]*Skill) (err error) {
-	for skillName, skill := range skills {
-		err = errors.Join(err, sk.addSkill(skillName, skill))
+// func (sk *SemanticKernel) AddSkillsMap(skills map[string]*Skill) (err error) {
+// 	for skillName, skill := range skills {
+// 		err = errors.Join(err, sk.addSkill(skillName, skill))
+// 	}
+// 	return
+// }
+
+// CreateAndAddSkills creates new skills and adds them to the kernel with their individual names
+func (sk *SemanticKernel) CreateAndAddSkills(newSkillFunctions ...func() (skill *Skill, err error)) (err error) {
+	for _, newSkillFunc := range newSkillFunctions {
+		skill, newSkillErr := newSkillFunc()
+		if newSkillErr != nil {
+			err = errors.Join(err, newSkillErr)
+			continue
+		}
+		err = errors.Join(err, sk.addSkill(skill.Name, skill))
 	}
 	return
 }

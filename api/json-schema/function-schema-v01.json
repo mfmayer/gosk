@@ -11,16 +11,6 @@
       "type": "string",
       "description": "The description of the function."
     },
-    "generator": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Comma separated names of generators that support this function. First found generator is used, so preferred generator should be first in the list."
-        }
-      },
-      "additionalProperties": true
-    },
     "parameters": {
       "type": "object",
       "additionalProperties": {
@@ -66,6 +56,10 @@
           }
         }
       }
+    },
+    "generator": {
+      "type": "string",
+      "description": "The skill's generator to use for this funtion."
     }
   }
 }

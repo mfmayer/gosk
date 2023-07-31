@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/mfmayer/gosk"
-	"github.com/mfmayer/gosk/pkg/gptgenerator"
 	"github.com/mfmayer/gosk/pkg/llm"
 	"github.com/mfmayer/gosk/pkg/skills/chat"
 )
@@ -25,21 +24,17 @@ func printOutput(output string) {
 }
 
 func main() {
+	// create chat skill
+	chatSkill, err := chat.New()
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	// create semantic kernel and add chat skill
 	kernel := gosk.NewKernel()
-	generator, err := gptgenerator.NewGPT35Generator()
-	if err != nil {
-		log.Fatal(err)
-	}
-	generators := map[string]llm.Generator{
-		"gpt35": generator,
-	}
-	chatSkill, err := chat.NewChatSkill(generators)
-	if err != nil {
-		log.Fatal(err)
-	}
 	kernel.AddSkills(chatSkill)
 
+	// start chat
 	inputString := waitForInput()
 	input := llm.NewContent(inputString).
 		WithRoleOption(llm.RoleUser).

@@ -1,13 +1,15 @@
 package test
 
 import (
+	"log"
 	"os"
 	"testing"
 	"text/template"
 
 	"github.com/mfmayer/gosk"
-	"github.com/mfmayer/gosk/pkg/gptgenerator"
+	"github.com/mfmayer/gosk/pkg/gpt"
 	"github.com/mfmayer/gosk/pkg/llm"
+	"github.com/mfmayer/gosk/pkg/skills/fun"
 )
 
 func TestNewSemanticFunctionCall(t *testing.T) {
@@ -29,59 +31,52 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 	if err != nil {
 		t.Fatal(err)
 	}
-	generator, err := gptgenerator.NewGPT35Generator()
+	generator, err := gpt.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	skillFunc := gosk.NewSemanticFunctionCall(template, generator)
 	result, err := skillFunc(llm.NewContent("dinosaurs").With("style", "as a shortstory"))
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Log(result)
 }
 
 func TestParseSemanticFunctionFromFS(t *testing.T) {
-	// path, err := os.Getwd()
-	// if err != nil {
-	// 	t.Fatal("Fehler beim Abrufen des Arbeitsverzeichnisses:", err)
-	// }
-	// t.Log(path)
-	generator, err := gptgenerator.NewGPT35Generator()
+	generator, err := gpt.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}
 	generators := map[string]llm.Generator{
-		"gpt35": generator,
+		"gpt-3.5-turbo": generator,
 	}
-
-	fsys := os.DirFS("../pkg/skills/assets/fun/joke")
+	fsys := os.DirFS("../pkg/skills/fun/assets/joke")
 	function, err := gosk.ParseSemanticFunctionFromFS(fsys, generators)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	result, err := function.Call(llm.NewContent("dinosaurs"))
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Log(result)
 }
 
 func TestParseSemanticSkillFromFS(t *testing.T) {
-	generator, err := gptgenerator.NewGPT35Generator()
-	if err != nil {
-		t.Fatal(err)
+	getGenerators := func(configs map[string]llm.GeneratorConfig) (generators llm.GeneratorMap, err error) {
+		generators = llm.GeneratorMap{}
+		for k, v := range configs {
+			generator, err := gpt.NewGenerator(gpt.WithConfig(v))
+			if err != nil {
+				return nil, err
+			}
+			generators[k] = generator
+		}
+		return
 	}
-	generators := map[string]llm.Generator{
-		"gpt35": generator,
-	}
-
-	fsys := os.DirFS("../pkg/skills/assets/fun")
-	skill, err := gosk.ParseSemanticSkillFromFS(fsys, generators)
+	fsys := os.DirFS("../pkg/skills/fun/assets")
+	skill, err := gosk.ParseSemanticSkillFromFS(fsys, getGenerators)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,18 +87,14 @@ func TestParseSemanticSkillFromFS(t *testing.T) {
 	t.Log(result)
 }
 
-func TestParseSemanticSkills(t *testing.T) {
-	generator, err := gptgenerator.NewGPT35Generator()
+func TestFunSkill(t *testing.T) {
+	skill, err := fun.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	result, err := skill.Call("joke", llm.NewContent("dinosaurs"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	generators := map[string]llm.Generator{
-		"gpt35": generator,
-	}
-	fsys := os.DirFS("../pkg/skills/assets")
-	skills, err := gosk.ParseSemanticSkillsFromFS(fsys, generators)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(skills)
+	t.Log(result)
 }

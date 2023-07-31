@@ -44,20 +44,20 @@ type Content interface {
 	WithData(data interface{}) Content
 	// With adds (or overwrites) option data for given name. Attention using "data" as name will overwrite the content's data payload.
 	With(name string, optionData interface{}) Content
-	// Option returns any set option and true if found in this or any predecessors. If not found nil/false is returned.
-	Option(name string) (interface{}, bool)
+	// Option returns any set option and true if found in this or any predecessors. If not found nil is returned.
+	Option(name string) interface{}
 	// WithRoleOption adds (or overwrites) role option
 	WithRoleOption(role ContentRole) Content
-	// RoleOption returns ContentRole if "role" option is available. Otherwise false is returned
-	RoleOption() (ContentRole, bool)
+	// RoleOption returns ContentRole if "role" option is available. Otherwise RoleEmpty (empty string) is returned.
+	RoleOption() ContentRole
 	// WithNameOption adds (or overwrites) name option
 	WithNameOption(name string) Content
-	// NameOption resturns name if "name" option is available. Otherwise false is returned
-	NameOption() (string, bool)
+	// NameOption resturns name if "name" option is available. Otherwise empty string is returned.
+	NameOption() string
 	// WithPredecessor adds (or overwrites) `predecessor` option
 	WithPredecessor(content Content) Content
-	// Predecessor returns predecessor if "predecessor" option is available. Otherwise false is returned
-	Predecessor() (Content, bool)
+	// Predecessor returns predecessor if "predecessor" option is available. Otherwise nil is returned
+	Predecessor() Content
 	// IsStructured returns true if data is structured
 	// IsStructured() bool
 }
@@ -72,10 +72,7 @@ func (c content) Data() interface{} {
 	if c == nil {
 		return nil
 	}
-	if data, ok := c.Option("data"); ok {
-		return data
-	}
-	return nil
+	return c.Option("data")
 }
 
 func (c content) StringData() string {
@@ -119,56 +116,62 @@ func (c content) With(name string, optionData interface{}) Content {
 	return c
 }
 
-func (c content) Option(name string) (interface{}, bool) {
+func (c content) Option(name string) interface{} {
 	if c == nil {
-		return nil, false
+		return nil
 	}
 	value, ok := c[name]
 	if !ok && name != "predecessor" {
-		if predecessor, ok := c.Predecessor(); ok {
+		if predecessor := c.Predecessor(); predecessor != nil {
 			return predecessor.Option(name)
 		}
 	}
-	return value, ok
+	return value
 }
 
 func (c content) WithRoleOption(role ContentRole) Content {
 	return c.With("role", role)
 }
 
-func (c content) RoleOption() (ContentRole, bool) {
-	role, ok := c.Option("role")
-	if !ok {
-		return "", ok
+func (c content) RoleOption() ContentRole {
+	role := c.Option("role")
+	if role == nil {
+		return RoleEmpty
 	}
-	typedRole, ok := role.(ContentRole)
-	return typedRole, ok
+	if typedRole, ok := role.(ContentRole); ok {
+		return typedRole
+	}
+	return RoleEmpty
 }
 
 func (c content) WithNameOption(name string) Content {
 	return c.With("name", name)
 }
 
-func (c content) NameOption() (string, bool) {
-	name, ok := c.Option("name")
-	if !ok {
-		return "", ok
+func (c content) NameOption() string {
+	name := c.Option("name")
+	if name == nil {
+		return ""
 	}
-	typedName, ok := name.(string)
-	return typedName, ok
+	if typedName, ok := name.(string); ok {
+		return typedName
+	}
+	return ""
 }
 
 func (c content) WithPredecessor(content Content) Content {
 	return c.With("predecessor", content)
 }
 
-func (c content) Predecessor() (Content, bool) {
-	predecessor, ok := c.Option("predecessor")
-	if !ok {
-		return nil, ok
+func (c content) Predecessor() Content {
+	predecessor := c.Option("predecessor")
+	if predecessor == nil {
+		return nil
 	}
-	typedPredecessor, ok := predecessor.(Content)
-	return typedPredecessor, ok
+	if typedPredecessor, ok := predecessor.(Content); ok {
+		return typedPredecessor
+	}
+	return nil
 }
 
 // NewContent to create new Content. As data only string, fmt.Stringer or map[string]interface{} structures are supported

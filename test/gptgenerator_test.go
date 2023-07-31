@@ -3,14 +3,14 @@ package test
 import (
 	"testing"
 
-	"github.com/mfmayer/gosk/pkg/gptgenerator"
+	"github.com/mfmayer/gosk/pkg/gpt"
 	"github.com/mfmayer/gosk/pkg/llm"
 )
 
 func TestGenerator(t *testing.T) {
 	var generator llm.Generator
 	var err error
-	generator, err = gptgenerator.NewGPT35Generator()
+	generator, err = gpt.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,17 +7,17 @@ import (
 	"text/template"
 
 	"github.com/mfmayer/gosk"
+	"github.com/mfmayer/gosk/pkg/gpt"
 	"github.com/mfmayer/gosk/pkg/llm"
 )
 
 //go:embed assets/*
 var fsTemplates embed.FS
 
-func NewChatSkill(generators llm.GeneratorMap) (*gosk.Skill, error) {
-	supportedGenerators := []string{"gpt35"}
-	generator, ok := generators.FindAny(supportedGenerators...)
-	if !ok {
-		return nil, fmt.Errorf("no supported generator (%v) found", supportedGenerators)
+func New() (*gosk.Skill, error) {
+	generator, err := gpt.NewGenerator(gpt.WithModel("gpt-3.5-turbo"))
+	if err != nil {
+		return nil, err
 	}
 
 	skill := &gosk.Skill{
@@ -55,12 +55,14 @@ func NewChatSkill(generators llm.GeneratorMap) (*gosk.Skill, error) {
 	}
 	skill.Functions[chatFunction.Name] = chatFunction
 
+	// parse template for system prompt
 	template, err := template.ParseFS(fsTemplates, "assets/chatgpt/skprompt.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing template: %w", err)
 	}
 	chatFunction.Call = func(input llm.Content) (output llm.Content, err error) {
-		if _, ok := input.Predecessor(); !ok {
+		// add system prompt to input if not already present
+		if input.Predecessor() == nil {
 			var promptBuffer bytes.Buffer
 			if err = template.Execute(&promptBuffer, input); err != nil {
 				return
