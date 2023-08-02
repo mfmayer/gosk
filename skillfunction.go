@@ -23,8 +23,8 @@ const (
 	TypeNull    Type = "null"
 )
 
-// FunctionParameter defines a function's parameter with its name, description and type
-type FunctionParameter struct {
+// Parameter defines a function's parameter with its name, description and type
+type Parameter struct {
 	Name        string      `json:"name,omitempty"`
 	Description string      `json:"description"`
 	Type        Type        `json:"type,omitempty"`
@@ -41,8 +41,10 @@ type Function struct {
 	Name string `json:"name,omitempty"`
 	// Description what the SkillFunction is doing
 	Description string `json:"description"`
+	// Plannable indicates whether the skill function can be planned by the semantic kernel
+	Plannable bool `json:"plannable,omitempty"`
 	// Parameters map whose keys are the parameters name and values their definition
-	Parameters map[string]*FunctionParameter `json:"parameters"`
+	Parameters map[string]*Parameter `json:"parameters"`
 	// call holds the function that is executed when the skill function is called
 	Call func(input llm.Content) (output llm.Content, err error) `json:"-"`
 }

@@ -17,6 +17,8 @@ type Skill struct {
 	Name string `json:"name,omitempty"`
 	// Description of the skill should indicate and give an idea about the functions that are included
 	Description string `json:"description"`
+	// Plannable indicates whether the skill can be planned by the semantic kernel
+	Plannable bool `json:"plannable,omitempty"`
 	// Functions that the skill provides
 	Functions map[string]*Function `json:"functions"`
 }

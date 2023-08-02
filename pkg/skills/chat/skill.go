@@ -28,7 +28,7 @@ func New() (*gosk.Skill, error) {
 	chatFunction := &gosk.Function{
 		Name:        "chatgpt",
 		Description: "Chat with GPT-3",
-		Parameters: map[string]*gosk.FunctionParameter{
+		Parameters: map[string]*gosk.Parameter{
 			"data": {
 				Description: "Data to be used for chat",
 				Required:    true,
