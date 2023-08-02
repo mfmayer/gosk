@@ -29,6 +29,7 @@ func (gc GeneratorConfig) Model() string {
 type GeneratorMap map[string]Generator
 
 var (
+	// ErrUnknownGeneratorModel is returned if a generator model is unknown
 	ErrUnknownGeneratorModel = errors.New("unknown generator model")
 )
 

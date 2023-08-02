@@ -8,6 +8,11 @@ import (
 	"github.com/mfmayer/gosk/pkg/llm"
 )
 
+var (
+	// ErrMissingParameter is returned when a required parameter is missing
+	ErrMissingParameter = errors.New("missing parameter")
+)
+
 // SemanticKernel
 type SemanticKernel struct {
 	// generators map[string]llm.Generator

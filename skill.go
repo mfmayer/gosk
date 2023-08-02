@@ -36,7 +36,7 @@ func (s *Skill) Call(functionName string, input llm.Content) (response llm.Conte
 		}
 		if parameter.Required {
 			if input.Option(parameter.Name) == nil {
-				err = errors.Join(err, fmt.Errorf("parameter `%s` is required", parameter.Name))
+				err = errors.Join(err, fmt.Errorf("%w: `%s`", ErrMissingParameter, parameter.Name))
 			}
 		}
 

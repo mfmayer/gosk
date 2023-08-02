@@ -11,6 +11,10 @@
       "type": "string",
       "description": "The description of the function."
     },
+    "plannable": {
+      "type": "boolean",
+      "description": "Indicates whether the function can be used in a plan."
+    },
     "parameters": {
       "type": "object",
       "additionalProperties": {
