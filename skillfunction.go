@@ -31,7 +31,6 @@ type Parameter struct {
 	Enum        []string    `json:"enum,omitempty"`
 	Required    bool        `json:"required,omitempty"`
 	Default     interface{} `json:"default,omitempty"`
-	// DefaultValue interface{} `json:"defaultValue,omitempty"` //TODO: to be implemented
 	//TODO: Add additional potentially valuable definitions like min, max, etc
 }
 
@@ -80,11 +79,6 @@ func ParseSemanticFunctionFromFS(fsys fs.FS, generators llm.GeneratorMap) (funct
 		err = fmt.Errorf("unmarshalling `config.json` failed: %w", err)
 		return
 	}
-	// resolve parameter names
-	// TODO: check if this is needed
-	// for paramName, param := range function.Parameters {
-	// 	param.Name = paramName
-	// }
 
 	// check if supported generator is avalilable
 	generator, ok := generators[functionConfig.Generator]

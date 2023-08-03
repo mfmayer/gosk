@@ -11,7 +11,6 @@ const (
 	// TypeSystem indicates that the message is a system instruction to the model
 	TypeSystem string = "system"
 	// TypeNativeFunctionResponse indicates that the message contains a native function response
-	//TODO: Define how content looks like
 	TypeNativeFunctionResponse string = "functionResponse"
 )
 
@@ -94,20 +93,25 @@ func (c content) value(path string) interface{} {
 		return v
 	}
 	// return value at path
-	var v interface{} = map[string]interface{}(c)
+	var current interface{} = map[string]interface{}(c)
 	for nextPathPart, remainingPath := getNextPathPart(path); nextPathPart != ""; nextPathPart, remainingPath = getNextPathPart(remainingPath) {
 		// path not yet complete
-		valueMap, ok := v.(map[string]interface{})
+		currentMap, ok := current.(map[string]interface{})
 		if !ok {
+			// patch incomplete and current is not a map --> property not found in this content object
+			// TODO: Check for property in predecessor
 			return nil
 		}
-		v, ok = valueMap[nextPathPart]
+		// get next
+		current, ok = currentMap[nextPathPart]
 		if !ok {
+			// patch incomplete and next element doesn't exist --> property not found in this content object
+			// TODO: Check for property in predecessor
 			return nil
 		}
 	}
 	// path complete
-	return v
+	return current
 }
 
 func (c content) string(path string) string {
