@@ -6,6 +6,7 @@ import (
 	"github.com/mfmayer/gosk"
 	"github.com/mfmayer/gosk/pkg/llm"
 	"github.com/mfmayer/gosk/pkg/skills/fun"
+	"github.com/mfmayer/gosk/pkg/skills/openweathermap"
 	"github.com/mfmayer/gosk/pkg/skills/writer"
 )
 
@@ -23,5 +24,19 @@ func TestKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(result)
+	t.Log(result.String())
+}
+
+func TestKernelWithWeatherSkill(t *testing.T) {
+	kernel := gosk.NewKernel()
+	err := kernel.CreateAndAddSkills(openweathermap.New)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := llm.NewContent().With("location.latitude", 48.137154).With("location.longitude", 11.576124)
+	response, err := kernel.Call("weather", "getWeatherData", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(response)
 }
