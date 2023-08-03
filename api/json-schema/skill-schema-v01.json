@@ -11,6 +11,10 @@
       "type": "string",
       "description": "The description of the skill."
     },
+    "plannable": {
+      "type": "boolean",
+      "description": "Indicates whether the skill can be used in a plan."
+    },
     "generators": {
       "type": "object",
       "description": "Map of generators used by the skill functions.",
