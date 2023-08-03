@@ -24,7 +24,7 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 {{or .style ""}}
 +++++
 
-{{.data}}
+{{.}}
 +++++
 `
 	template, err := template.New("skprompt").Parse(skprompt)

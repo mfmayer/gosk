@@ -113,12 +113,11 @@ func ParseSemanticFunctionFromFS(fsys fs.FS, generators llm.GeneratorMap) (funct
 // NewSemanticFunctionCall creates a new semantic skill function with a prompt template and a generator
 func NewSemanticFunctionCall(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(parameters llm.Content) (response llm.Content, err error)) {
 	skillFunc = func(input llm.Content) (output llm.Content, err error) {
-		// FIXME: parameter availability must be checked
 		var promptBuffer bytes.Buffer
 		if err = promptTemplate.Execute(&promptBuffer, input); err != nil {
 			return
 		}
-		input.WithData(promptBuffer.String())
+		input.Set(promptBuffer.String())
 		return generator.GenerateResponse(input)
 	}
 	return

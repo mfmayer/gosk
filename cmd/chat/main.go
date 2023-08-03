@@ -37,7 +37,7 @@ func main() {
 	// start chat
 	inputString := waitForInput()
 	input := llm.NewContent(inputString).
-		WithRoleOption(llm.RoleUser).
+		SetRole(llm.RoleUser).
 		With("date", time.Now().String()).
 		With("botName", "Ida").
 		With("firstName", "John").
@@ -50,7 +50,7 @@ func main() {
 		printOutput(response.String())
 		inputString := waitForInput()
 		input := llm.NewContent(inputString).
-			WithRoleOption(llm.RoleUser).
+			SetRole(llm.RoleUser).
 			WithPredecessor(response)
 		response, err = kernel.Call("chat", "chatgpt", input)
 		if err != nil {

@@ -163,7 +163,7 @@ func (sk *SemanticKernel) ChainCall(context llm.Content, functions ...*Function)
 			err = fmt.Errorf("error calling function `%s`: %w", function.Name, err)
 			return
 		}
-		context.WithData(response.Data())
+		context.Set(response.Value())
 	}
 	return
 }

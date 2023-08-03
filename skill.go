@@ -32,12 +32,12 @@ func (s *Skill) Call(functionName string, input llm.Content) (response llm.Conte
 	// Check input for required parameters and eventually set default values
 	for _, parameter := range function.Parameters {
 		if parameter.Default != nil {
-			if input.Option(parameter.Name) == nil {
+			if input.Property(parameter.Name) == nil {
 				input.With(parameter.Name, parameter.Default)
 			}
 		}
 		if parameter.Required {
-			if input.Option(parameter.Name) == nil {
+			if input.Property(parameter.Name) == nil {
 				err = errors.Join(err, fmt.Errorf("%w: `%s`", ErrMissingParameter, parameter.Name))
 			}
 		}

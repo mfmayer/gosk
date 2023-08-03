@@ -6,7 +6,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mfmayer/gopenai v0.0.4
 	github.com/tidwall/gjson v1.14.4
-	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
 )
 
 require (

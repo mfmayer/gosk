@@ -28,7 +28,7 @@ func Content2Message(content llm.Content) (msg *gopenai.Message, err error) {
 		return
 	}
 	msg = &gopenai.Message{}
-	role := content.RoleOption()
+	role := content.Role()
 	if role != llm.RoleEmpty {
 		switch role {
 		case llm.RoleSystem:
@@ -48,8 +48,8 @@ func Content2Message(content llm.Content) (msg *gopenai.Message, err error) {
 	}
 	if role == llm.RoleFunctionCall {
 		msg.FunctionCall = &gopenai.FunctionCall{}
-		msg.FunctionCall.Arguments = content.StringData()
-		if name := content.NameOption(); name != "" {
+		msg.FunctionCall.Arguments = string(content.JSON())
+		if name := content.Name(); name != "" {
 			msg.FunctionCall.Name = name
 		} else {
 			err = errors.New("content for function call is not designated")
@@ -57,8 +57,8 @@ func Content2Message(content llm.Content) (msg *gopenai.Message, err error) {
 		}
 		return
 	}
-	msg.Content = content.StringData()
-	if name := content.NameOption(); name != "" {
+	msg.Content = content.String()
+	if name := content.Name(); name != "" {
 		msg.Name = name
 	}
 	return
@@ -89,10 +89,10 @@ func Message2Content(msg *gopenai.Message) (content llm.Content) {
 	}
 	content = llm.NewContent(contentString)
 	if len(role) > 0 {
-		content.WithRoleOption(role)
+		content.SetRole(role)
 	}
 	if len(name) > 0 {
-		content.WithNameOption(name)
+		content.SetName(name)
 	}
 	return
 }

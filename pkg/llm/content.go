@@ -33,156 +33,249 @@ const (
 	RoleFunctionResponse ContentRole = "funcResponse"
 )
 
-type Content interface {
+type ContentProperty interface {
 	fmt.Stringer
-	// Data returns Content's "data" object which represents the content's payload.
-	Data() interface{} //map[string]interface{}
-	// StringData returns Content's payload in a marshalled (serialized) json format when possible.
-	// If content is a string or a fmt.Stringer, the according string is directly returned.
-	StringData() string
-	// WithData adds (or overwrites) the content's data property.
-	WithData(data interface{}) Content
-	// With adds (or overwrites) option data for given name. Attention using "data" as name will overwrite the content's data payload.
-	With(name string, optionData interface{}) Content
-	// Option returns any set option and true if found in this or any predecessors. If not found nil is returned.
-	Option(name string) interface{}
-	// WithRoleOption adds (or overwrites) role option
-	WithRoleOption(role ContentRole) Content
-	// RoleOption returns ContentRole if "role" option is available. Otherwise RoleEmpty (empty string) is returned.
-	RoleOption() ContentRole
-	// WithNameOption adds (or overwrites) name option
-	WithNameOption(name string) Content
-	// NameOption resturns name if "name" option is available. Otherwise empty string is returned.
-	NameOption() string
+	// Set sets the property's value
+	Set(value interface{}) Content
+	// Value returns the property's value
+	Value() interface{}
+	// JSON returns the property's value as JSON
+	JSON() []byte
+}
+
+type Content interface {
+	ContentProperty
+	// With sets a property at given path and is a shortcut for Property(path).Set(value)
+	With(path string, value interface{}) Content
+	// Prop returns the content's property at given path, nil if not available
+	Property(path string) ContentProperty
+	// Input is an alias for Content's Value()
+	Input() ContentProperty
+	// SetRole sets Content's optionl role
+	SetRole(ContentRole) Content
+	// Role returns Content's role, RoleEmpty if not set
+	Role() ContentRole
+	// SetName set Content's optional name
+	SetName(string) Content
+	// Name() return Content's name, "" if not set
+	Name() string
 	// WithPredecessor adds (or overwrites) `predecessor` option
 	WithPredecessor(content Content) Content
 	// Predecessor returns predecessor if "predecessor" option is available. Otherwise nil is returned
 	Predecessor() Content
-	// IsStructured returns true if data is structured
-	// IsStructured() bool
 }
 
 type content map[string]interface{}
 
-func (c content) String() string {
-	return c.StringData()
+// NewContent to create new Content with given content value
+func NewContent(value ...interface{}) Content {
+	content := content{}
+	if len(value) <= 0 {
+		return content
+	}
+	if len(value) == 1 {
+		content.Set(value[0])
+		return content
+	}
+	content.Set(value)
+	return content
 }
 
-func (c content) Data() interface{} {
+func (c content) value(path string) interface{} {
 	if c == nil {
 		return nil
 	}
-	return c.Option("data")
-}
-
-func (c content) StringData() string {
-	data := c.Data()
-	if data == nil {
-		return ""
+	if path == "" {
+		// return root value
+		v, ok := c[""]
+		if !ok {
+			return nil
+		}
+		return v
 	}
-	switch d := data.(type) {
-	case string:
-		return d
-	case fmt.Stringer:
-		return d.String()
-	}
-	if jsonData, err := json.Marshal(data); err == nil {
-		return string(jsonData)
-	}
-	return ""
-}
-
-func (c content) WithData(data interface{}) Content {
-	if c == nil {
-		return c
-	}
-	if data == nil {
-		return c.With("data", nil)
-	}
-	if d, ok := data.(string); ok {
-		var m map[string]interface{}
-		if err := json.Unmarshal([]byte(d), &m); err == nil {
-			return c.With("data", m)
+	// return value at path
+	var v interface{} = map[string]interface{}(c)
+	for nextPathPart, remainingPath := getNextPathPart(path); nextPathPart != ""; nextPathPart, remainingPath = getNextPathPart(remainingPath) {
+		// path not yet complete
+		valueMap, ok := v.(map[string]interface{})
+		if !ok {
+			return nil
+		}
+		v, ok = valueMap[nextPathPart]
+		if !ok {
+			return nil
 		}
 	}
-	return c.With("data", data)
+	// path complete
+	return v
 }
 
-func (c content) With(name string, optionData interface{}) Content {
+func (c content) string(path string) string {
+	value := c.value(path)
+	if value == nil {
+		return ""
+	}
+	// return v
+	if stringValue, ok := value.(string); ok {
+		return stringValue
+	}
+	marshalledValue, err := json.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	return string(marshalledValue)
+}
+
+func (c content) String() string {
+	return c.string("")
+}
+
+func (c content) Set(value interface{}) Content {
+	return c.With("", value)
+}
+
+func (c content) Value() interface{} {
+	return c.value("")
+}
+
+func (c content) With(path string, value interface{}) Content {
 	if c == nil {
+		return nil
+	}
+	if value == nil {
+		// nothing to set
+		return nil
+	}
+	if path == "" {
+		// set value at root
+		setValue(c, "", value)
 		return c
 	}
-	c[name] = optionData
+	// set value at path
+	var currentMap map[string]interface{} = c
+	for nextPathPart, remainingPath := getNextPathPart(path); nextPathPart != "" || remainingPath != ""; nextPathPart, remainingPath = getNextPathPart(remainingPath) {
+		// Last path part? --> Set value
+		if len(remainingPath) <= 0 {
+			setValue(currentMap, nextPathPart, value)
+			break
+		}
+		// get next
+		next, ok := currentMap[nextPathPart]
+		if !ok {
+			// next element doesn't exist --> create map and set it
+			nextMap := map[string]interface{}{}
+			currentMap[nextPathPart] = nextMap
+			currentMap = nextMap
+			continue
+		}
+		nextMap, ok := next.(map[string]interface{})
+		if !ok {
+			// next element is not a map --> create map and replace it
+			nextMap := map[string]interface{}{}
+			currentMap[nextPathPart] = nextMap
+			currentMap = nextMap
+			continue
+		}
+		// next element is already a map, set as current map
+		currentMap = nextMap
+	}
+	// path complete
 	return c
 }
 
-func (c content) Option(name string) interface{} {
-	if c == nil {
-		return nil
+func (c content) Property(path string) ContentProperty {
+	return contentEntry{
+		path: path,
+		cm:   c,
 	}
-	value, ok := c[name]
-	if !ok && name != "predecessor" {
-		if predecessor := c.Predecessor(); predecessor != nil {
-			return predecessor.Option(name)
-		}
-	}
-	return value
 }
 
-func (c content) WithRoleOption(role ContentRole) Content {
-	return c.With("role", role)
+func (c content) Input() ContentProperty {
+	return c.Property("")
 }
 
-func (c content) RoleOption() ContentRole {
-	role := c.Option("role")
-	if role == nil {
-		return RoleEmpty
-	}
-	if typedRole, ok := role.(ContentRole); ok {
-		return typedRole
-	}
-	return RoleEmpty
+func (c content) SetRole(role ContentRole) Content {
+	c.With("role", role)
+	return c
 }
 
-func (c content) WithNameOption(name string) Content {
-	return c.With("name", name)
-}
-
-func (c content) NameOption() string {
-	name := c.Option("name")
-	if name == nil {
-		return ""
-	}
-	if typedName, ok := name.(string); ok {
-		return typedName
+func (c content) Role() ContentRole {
+	if role, ok := c.value("role").(ContentRole); ok {
+		return role
 	}
 	return ""
 }
 
+func (c content) SetName(name string) Content {
+	c.With("name", name)
+	return c
+}
+
+func (c content) Name() string {
+	if name, ok := c.value("name").(string); ok {
+		return name
+	}
+	return ""
+}
+
+func (c content) JSON() []byte {
+	if c == nil {
+		return nil
+	}
+	marshalledValue, err := json.Marshal(c)
+	if err != nil {
+		return nil
+	}
+	return marshalledValue
+}
+
 func (c content) WithPredecessor(content Content) Content {
-	return c.With("predecessor", content)
+	c["predecessor"] = content
+	return c
 }
 
 func (c content) Predecessor() Content {
-	predecessor := c.Option("predecessor")
-	if predecessor == nil {
-		return nil
-	}
-	if typedPredecessor, ok := predecessor.(Content); ok {
-		return typedPredecessor
+	if predecessor, ok := c.value("predecessor").(Content); ok {
+		return predecessor
 	}
 	return nil
 }
 
-// NewContent to create new Content. As data only string, fmt.Stringer or map[string]interface{} structures are supported
-// JSON string representations will be automatically structurized so that IsStructure() would be also true
-func NewContent(data ...interface{}) Content {
-	content := content{}
-	if len(data) == 0 {
-		return content
+type contentEntry struct {
+	path string
+	cm   content
+}
+
+func (ce contentEntry) String() string {
+	if ce.cm == nil {
+		return ""
 	}
-	if len(data) == 1 {
-		return content.WithData(data[0])
+	return ce.cm.string(ce.path)
+}
+
+func (ce contentEntry) JSON() []byte {
+	if ce.cm == nil {
+		return nil
 	}
-	return content.WithData(data)
+	value := ce.cm.value(ce.path)
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return bytes
+}
+
+func (ce contentEntry) Value() interface{} {
+	if ce.cm == nil {
+		return nil
+	}
+	return ce.cm.value(ce.path)
+}
+
+func (ce contentEntry) Set(value interface{}) Content {
+	if ce.cm == nil {
+		return nil
+	}
+	ce.cm.With(ce.path, value)
+	return ce.cm
 }

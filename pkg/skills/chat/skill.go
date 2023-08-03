@@ -67,7 +67,7 @@ func New() (*gosk.Skill, error) {
 			if err = template.Execute(&promptBuffer, input); err != nil {
 				return
 			}
-			systemInput := llm.NewContent(promptBuffer.String()).WithRoleOption(llm.RoleSystem)
+			systemInput := llm.NewContent(promptBuffer.String()).SetRole(llm.RoleSystem)
 			input.WithPredecessor(systemInput)
 		}
 		response, err := generator.GenerateResponse(input)

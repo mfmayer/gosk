@@ -12,6 +12,7 @@ import (
 //go:embed assets
 var fsAssets embed.FS
 
+// TODO: generators should provide helper function to create new generator from config. This should be only optionally provided by the skill.
 func getGenerators(generatorConfigs map[string]llm.GeneratorConfig) (generators llm.GeneratorMap, err error) {
 	generators = llm.GeneratorMap{}
 	for k, v := range generatorConfigs {
