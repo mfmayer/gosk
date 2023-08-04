@@ -93,21 +93,30 @@ func (c content) value(path string) interface{} {
 		return v
 	}
 	// return value at path
-	var current interface{} = map[string]interface{}(c)
+	currentContent := c
+FINDVALUE:
+	var current interface{} = map[string]interface{}(currentContent)
 	for nextPathPart, remainingPath := getNextPathPart(path); nextPathPart != ""; nextPathPart, remainingPath = getNextPathPart(remainingPath) {
 		// path not yet complete
 		currentMap, ok := current.(map[string]interface{})
 		if !ok {
 			// patch incomplete and current is not a map --> property not found in this content object
-			// TODO: Check for property in predecessor
-			return nil
+			current = nil
+			break
 		}
 		// get next
 		current, ok = currentMap[nextPathPart]
 		if !ok {
 			// patch incomplete and next element doesn't exist --> property not found in this content object
-			// TODO: Check for property in predecessor
-			return nil
+			current = nil
+			break
+		}
+	}
+	if current == nil {
+		predecessor, ok := currentContent.Predecessor().(content)
+		if ok {
+			current = map[string]interface{}(predecessor)
+			goto FINDVALUE
 		}
 	}
 	// path complete
