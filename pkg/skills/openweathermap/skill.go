@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/mfmayer/gosk"
@@ -111,10 +112,9 @@ func New() (skill *gosk.Skill, err error) {
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println(result)
-			// if location == nil {
-			// 	return
-			// }
+			output = llm.NewContent()
+			output.With("weather.description", result.Get("list.0.weather.0.description").String())
+			output.With("weather.time", time.Unix(result.Get("list.0.dt").Int(), 0).String())
 			return
 		},
 	}
