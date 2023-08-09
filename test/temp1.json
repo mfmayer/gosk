@@ -1,0 +1,25 @@
+{
+  "GetWeather": {
+    "description": "Get the weather forecast for today.",
+    "inputProperties": {
+      "location": {
+        "description": "The location geocoordinates for which the weather information should be retrieved.",
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "description": "The location's geocoordinates latitude.",
+            "type": "number"
+          },
+          "longitude": {
+            "description": "The location's geocoordinates longitude.",
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "GetUserLocation": {
+    "description": "Get the location geocoordinates from {{or .firstName "the user"}}",
+    "inputProperties": {}
+  }
+}

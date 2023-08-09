@@ -1,0 +1,91 @@
+PLEASE DESCRIBE WHAT IS MISSING AND HOW YOU WOULD USE THESE FUNCTIONS TO FULLFILL THE USERS REQUEST:
+
+PLEASE PROVIDE A LIST OF CONTEXT INFORMATION THAT IS MISSING TO FULLFILL THE USERS REQUEST AND WHAT FUNCTIONS YOU WOULD USE TO GET IT IN THE FOLLOWING FORMAT: {
+  "<Missing-Context-Info-A>": {
+    "<Function-Name-To-Resolve-Context-Info-A>": {
+      "inputProperties": {
+        "<property-A>": "<value-A>",
+        ...
+      }
+    }
+  },
+  ...
+}
+
+{
+  "location": {
+    "description": "The location geocoordinates from {{or .firstName "the user"}}",
+    "latitude": 52.520008,
+    "longitude": 13.404954
+  }
+}
+
+{
+  "designation": "UserLocation",
+  "function": "GetUserLocation",
+  "inputProperties": {},
+  "output": {
+    "longitude": 9.990686,
+    "latitude": 53.551086
+  }
+},
+{
+  "designation": "WeatherInfo",
+  "function": "GetWeather",
+  "inputProperties": {
+    "location": {
+      "latitude": 53.551086,
+      "longitude": 9.990686
+    }
+  }
+}
+
+{
+  "designation": "WeatherInfo",
+  "function": "GetWeather",
+  "inputProperties": {
+    "location": {
+      "latitude": 53.551086,
+      "longitude": 9.990686
+    }
+  },
+  "output": {
+    "temperature": 20,
+    "description": "Sunny",
+    "wind": 10,
+    "rain": 0,
+    "clouds": 0,
+    "humidity": 0,
+    "pressure": 0
+  }
+}
+
+
+  {
+  "designation": "UserLocation",
+  "function": "GetUserLocation",
+  "inputProperties": {},
+  "output": {
+    "longitude": 9.990686,
+    "latitude": 53.551086
+  }
+},
+{
+  "designation": "WeatherInfo",
+  "function": "GetWeather",
+  "inputProperties": {
+    "location": {
+      "latitude": 53.551086,
+      "longitude": 9.990686
+    }
+  }
+		"output": {
+    "temperature": 20,
+    "description": "Sunny",
+    "wind": 10,
+    "rain": 0,
+    "clouds": 0,
+    "humidity": 0,
+    "pressure": 0
+  }
+}
