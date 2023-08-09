@@ -1,10 +1,8 @@
 package chat
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
-	"text/template"
 
 	"github.com/mfmayer/gosk"
 	"github.com/mfmayer/gosk/pkg/gpt"
@@ -28,7 +26,7 @@ func New() (*gosk.Skill, error) {
 	chatFunction := &gosk.Function{
 		Name:        "chatgpt",
 		Description: "Chat with GPT-3",
-		Parameters: map[string]*gosk.Parameter{
+		InputProperties: map[string]*gosk.Parameter{
 			"data": {
 				Description: "Data to be used for chat",
 				Required:    true,
@@ -56,18 +54,18 @@ func New() (*gosk.Skill, error) {
 	skill.Functions[chatFunction.Name] = chatFunction
 
 	// parse template for system prompt
-	template, err := template.ParseFS(fsTemplates, "assets/chatgpt/skprompt.tmpl")
+	template, err := llm.TemplateFromFS(fsTemplates, "assets/chatgpt/skprompt.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing template: %w", err)
 	}
-	chatFunction.Call = func(input llm.Content) (output llm.Content, err error) {
+	chatFunction.Call = func(input llm.Content) (llm.Content, error) {
 		// add system prompt to input if not already present
 		if input.Predecessor() == nil {
-			var promptBuffer bytes.Buffer
-			if err = template.Execute(&promptBuffer, input); err != nil {
-				return
+			systemPrompt, err := llm.ExecuteTemplate(template, input)
+			if err != nil {
+				return nil, err
 			}
-			systemInput := llm.NewContent(promptBuffer.String()).SetRole(llm.RoleSystem)
+			systemInput := llm.NewContent(systemPrompt).SetRole(llm.RoleSystem)
 			input.WithPredecessor(systemInput)
 		}
 		response, err := generator.GenerateResponse(input)

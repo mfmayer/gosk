@@ -23,14 +23,14 @@ type Skill struct {
 	Functions map[string]*Function `json:"functions"`
 }
 
-// Call a skill function with given name and parameters
+// Call a skill function with given name and input content
 func (s *Skill) Call(functionName string, input llm.Content) (response llm.Content, err error) {
 	function, ok := s.Functions[functionName]
 	if !ok {
 		return nil, fmt.Errorf("function `%s` not found", functionName)
 	}
-	// Check input for required parameters and eventually set default values
-	for _, parameter := range function.Parameters {
+	// Check input for required input properties and eventually set default values
+	for _, parameter := range function.InputProperties {
 		if parameter.Default != nil {
 			if input.Property(parameter.Name) == nil {
 				input.With(parameter.Name, parameter.Default)

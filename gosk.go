@@ -85,7 +85,7 @@ func (sk *SemanticKernel) addSkill(name string, skill *Skill) error {
 		if function.Name == "" {
 			function.Name = functionName
 		}
-		for parameterName, parameter := range function.Parameters {
+		for parameterName, parameter := range function.InputProperties {
 			if parameter.Name == "" {
 				parameter.Name = parameterName
 			}
@@ -142,7 +142,7 @@ func (sk *SemanticKernel) FindFunctions(functionPaths ...string) (functions []*F
 	return
 }
 
-// Call a skill function with given name and parameters and returns the response and/or an error
+// Call a skill function with given name and input. Returns the response and/or an error
 // The kernel also links the input as predecessor to the response
 func (sk *SemanticKernel) Call(skillName string, skillFunction string, input llm.Content) (response llm.Content, err error) {
 	if skill, ok := sk.skills[skillName]; ok {

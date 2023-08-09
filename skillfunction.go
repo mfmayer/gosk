@@ -34,7 +34,7 @@ type Parameter struct {
 	//TODO: Add additional potentially valuable definitions like min, max, etc
 }
 
-// Function defines and describes a skill's function with its parameters and its actual function call
+// Function defines and describes a skill's function with its input properties and its actual function call
 type Function struct {
 	// Name of the SkillFunction
 	Name string `json:"name,omitempty"`
@@ -42,8 +42,8 @@ type Function struct {
 	Description string `json:"description"`
 	// Plannable indicates whether the skill function can be planned by the semantic kernel
 	Plannable bool `json:"plannable,omitempty"`
-	// Parameters map whose keys are the parameters name and values their definition
-	Parameters map[string]*Parameter `json:"parameters"`
+	// InputProperties map whose keys are the input property names and whose values are the input property definitions
+	InputProperties map[string]*Parameter `json:"inputProperties"`
 	// call holds the function that is executed when the skill function is called
 	Call func(input llm.Content) (output llm.Content, err error) `json:"-"`
 }
@@ -88,24 +88,18 @@ func ParseSemanticFunctionFromFS(fsys fs.FS, generators llm.GeneratorMap) (funct
 	}
 
 	// get template
-	template, err := template.ParseFS(fsys, "*.tmpl")
-	if err != nil {
-		err = fmt.Errorf("error parsing templates: %w", err)
-		return
-	}
-	promptTemplate := template.Lookup("skprompt.tmpl")
-	if promptTemplate == nil {
-		err = fmt.Errorf("\"skprompt.tmpl\" not found")
-		return
-	}
+	template, err := llm.TemplateFromFS(fsys, "*.tmpl")
 
 	// create function call
-	function.Call = NewSemanticFunctionCall(promptTemplate, generator)
+	function.Call = NewSemanticFunctionCall(template, generator)
 	return
 }
 
 // NewSemanticFunctionCall creates a new semantic skill function with a prompt template and a generator
-func NewSemanticFunctionCall(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(parameters llm.Content) (response llm.Content, err error)) {
+func NewSemanticFunctionCall(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error)) {
+	if promptTemplate == nil {
+		return
+	}
 	skillFunc = func(input llm.Content) (output llm.Content, err error) {
 		var promptBuffer bytes.Buffer
 		if err = promptTemplate.Execute(&promptBuffer, input); err != nil {

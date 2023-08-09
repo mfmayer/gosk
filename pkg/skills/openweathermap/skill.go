@@ -80,7 +80,7 @@ func New() (skill *gosk.Skill, err error) {
 	getWeatherData := &gosk.Function{
 		Name:        "getWeatherData",
 		Description: "Get weather data for a given location.",
-		Parameters: map[string]*gosk.Parameter{
+		InputProperties: map[string]*gosk.Parameter{
 			"location.latitude": {
 				Description: "The location's geocoordinates latitude.",
 				Type:        gosk.TypeNumber,
