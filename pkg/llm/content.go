@@ -48,6 +48,8 @@ type Content interface {
 	With(path string, value interface{}) Content
 	// Prop returns the content's property at given path, nil if not available
 	Property(path string) ContentProperty
+	// Properties returns all properties of the content and its predecessors
+	Properties() map[string]ContentProperty
 	// Input is an alias for Content's Value()
 	Input() ContentProperty
 	// SetRole sets Content's optionl role
@@ -80,6 +82,7 @@ func NewContent(value ...interface{}) Content {
 	return content
 }
 
+// value returns the value at given path from this content object or its predecessors
 func (c content) value(path string) interface{} {
 	if c == nil {
 		return nil
@@ -115,7 +118,7 @@ FINDVALUE:
 	if current == nil {
 		predecessor, ok := currentContent.Predecessor().(content)
 		if ok {
-			current = map[string]interface{}(predecessor)
+			currentContent = predecessor
 			goto FINDVALUE
 		}
 	}
@@ -123,6 +126,8 @@ FINDVALUE:
 	return current
 }
 
+// string returns the string value at given path from this content object or its predecessors.
+// Strings are returned as is. If value can be marshalled to string, the marshalled value is returned.
 func (c content) string(path string) string {
 	value := c.value(path)
 	if value == nil {
@@ -132,6 +137,13 @@ func (c content) string(path string) string {
 	if stringValue, ok := value.(string); ok {
 		return stringValue
 	}
+	// if stringTemplate, ok := value.(*template.Template); ok {
+	// 	var buffer bytes.Buffer
+	// 	if err := stringTemplate.Execute(&buffer, c); err != nil {
+	// 		return ""
+	// 	}
+	// 	return buffer.String()
+	// }
 	marshalledValue, err := json.Marshal(value)
 	if err != nil {
 		return ""
@@ -139,14 +151,17 @@ func (c content) string(path string) string {
 	return string(marshalledValue)
 }
 
+// String returns the string of the content's value with empty path (path="").
 func (c content) String() string {
 	return c.string("")
 }
 
+// Set sets the value with empty path (path="").
 func (c content) Set(value interface{}) Content {
 	return c.With("", value)
 }
 
+// Value returns the value with empty path (path="").
 func (c content) Value() interface{} {
 	return c.value("")
 }
@@ -203,6 +218,27 @@ func (c content) Property(path string) ContentProperty {
 	}
 }
 
+func (c content) Properties() map[string]ContentProperty {
+	if c == nil {
+		return nil
+	}
+	properties := map[string]ContentProperty{}
+	for currentContent, ok := c, true; ok && currentContent != nil; currentContent, ok = currentContent.Predecessor().(content) {
+		for k := range currentContent {
+			if k == "" {
+				continue
+			}
+			if _, ok := properties[k]; !ok {
+				properties[k] = contentEntry{
+					path: k,
+					cm:   c,
+				}
+			}
+		}
+	}
+	return properties
+}
+
 func (c content) Input() ContentProperty {
 	return c.Property("")
 }
@@ -213,10 +249,15 @@ func (c content) SetRole(role ContentRole) Content {
 }
 
 func (c content) Role() ContentRole {
-	if role, ok := c.value("role").(ContentRole); ok {
-		return role
+	iRole, ok := c["role"]
+	if !ok {
+		return RoleEmpty
 	}
-	return ""
+	role, ok := iRole.(ContentRole)
+	if !ok {
+		return RoleEmpty
+	}
+	return role
 }
 
 func (c content) SetName(name string) Content {
@@ -225,10 +266,15 @@ func (c content) SetName(name string) Content {
 }
 
 func (c content) Name() string {
-	if name, ok := c.value("name").(string); ok {
-		return name
+	iName, ok := c["name"]
+	if !ok {
+		return ""
 	}
-	return ""
+	name, ok := iName.(string)
+	if !ok {
+		return ""
+	}
+	return name
 }
 
 func (c content) JSON() []byte {
@@ -248,7 +294,11 @@ func (c content) WithPredecessor(content Content) Content {
 }
 
 func (c content) Predecessor() Content {
-	if predecessor, ok := c.value("predecessor").(Content); ok {
+	iPredecessor, ok := c["predecessor"]
+	if !ok {
+		return nil
+	}
+	if predecessor, ok := iPredecessor.(Content); ok {
 		return predecessor
 	}
 	return nil
