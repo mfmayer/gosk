@@ -7,58 +7,35 @@ import (
 	"github.com/mfmayer/gosk/pkg/llm"
 )
 
+var Factory *gptFactory
+
+type gptFactory struct{}
+
+func (f *gptFactory) TypeID() string {
+	return "gpt"
+}
+
+func (f *gptFactory) New(config map[string]interface{}) (generator llm.Generator, err error) {
+	key, err := getOpenAIKey()
+	if err != nil {
+		return
+	}
+	chatClient := gopenai.NewChatClient(key)
+	generator = &Generator{
+		model:      "gpt-3.5-turbo", // FIXME: should be set by config
+		chatClient: chatClient,
+	}
+	return
+}
+
 // GPT35Generator represents the OpenAI GPT3.5 Model and implements the llm.Generator interface
 type Generator struct {
 	model      string
 	chatClient *gopenai.ChatClient
 }
 
-type optionData struct {
-	model  string
-	config llm.GeneratorConfig
-}
-
-type optionFunc func(*optionData)
-
-// WithModel to set the model
-func WithModel(model string) optionFunc {
-	return func(o *optionData) {
-		o.model = model
-	}
-}
-
-func WithConfig(config llm.GeneratorConfig) optionFunc {
-	return func(o *optionData) {
-		o.config = config
-	}
-}
-
-// NewGPT35Generator creates new GPT35Generator
-func NewGenerator(option ...optionFunc) (generator *Generator, err error) {
-	key, err := getOpenAIKey()
-	if err != nil {
-		return
-	}
-	optionData := optionData{
-		model: "gpt-3.5-turbo",
-	}
-	for _, opt := range option {
-		opt(&optionData)
-	}
-	chatClient := gopenai.NewChatClient(key)
-	generator = &Generator{
-		model:      optionData.model,
-		chatClient: chatClient,
-	}
-	return
-}
-
-func (gpt *Generator) Name() string {
-	return gpt.model
-}
-
 // GenerateResponse to get response from the model
-func (gpt *Generator) GenerateResponse(input llm.Content) (response llm.Content, err error) {
+func (gpt *Generator) Generate(input llm.Content) (response llm.Content, err error) {
 	if gpt.chatClient == nil {
 		err = errors.New("missing model client")
 		return

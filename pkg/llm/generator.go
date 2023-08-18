@@ -1,36 +1,54 @@
 package llm
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
-// Generator as a generic interface for large langage model generators
+// GeneratorConfig to configure a specific generator's (defined by ID) response generator
+type GeneratorConfig struct {
+	TypeID           string                 `json:"typeID"`
+	ConfigProperties map[string]interface{} `json:"config,omitempty"`
+}
+
+// GeneratorFactory allows to create response generators
+type GeneratorFactory interface {
+	TypeID() string
+	New(config map[string]interface{}) (Generator, error)
+}
+
+// Generator as a generic interface for large langage model response generators
 type Generator interface {
 	// GenerateResponse to get response from the model behind the generator
-	GenerateResponse(input Content) (response Content, err error)
+	Generate(input Content) (response Content, err error)
 }
 
-// GeneratorConfig as a map of arbitrary generator configuration
-// At least "model" should be available for each generator configuration
-type GeneratorConfig map[string]interface{}
+// GeneratorFactoryMap is a map of generator factories of different types
+type GeneratorFactoryMap map[string]GeneratorFactory
 
-// Model returns the model name of the generator configuration. If not available "" is returned.
-func (gc GeneratorConfig) Model() string {
-	if gc == nil {
-		return ""
-	}
-	if model, ok := gc["model"]; ok {
-		if modelString, ok := model.(string); ok {
-			return modelString
+// CreateResponseGenerators creates response generators map from a given config map. Their keys are the names of the response generators.
+func (gm GeneratorFactoryMap) CreateGenerators(generatorConfigs map[string]GeneratorConfig) (generators map[string]Generator, err error) {
+	generators = map[string]Generator{}
+	for generatorName, generatorConfig := range generatorConfigs {
+		generatorFactory, ok := gm[generatorConfig.TypeID]
+		if !ok {
+			err = errors.Join(err, fmt.Errorf("%w: `%s`", ErrUnknownGeneratorType, generatorConfig.TypeID))
+			continue
 		}
+		generator, newGenError := generatorFactory.New(generatorConfig.ConfigProperties)
+		if newGenError != nil {
+			err = errors.Join(err, fmt.Errorf("creating generator \"%s\" failed: %w", generatorName, newGenError))
+			continue
+		}
+		generators[generatorName] = generator
 	}
-	return ""
+	return
 }
-
-// GeneratorMap as a map of generators
-type GeneratorMap map[string]Generator
 
 var (
 	// ErrUnknownGeneratorModel is returned if a generator model is unknown
 	ErrUnknownGeneratorModel = errors.New("unknown generator model")
+	ErrUnknownGeneratorType  = errors.New("unknown generator type")
 )
 
 // FindAny returns first generator that matches any of the given patterns in given order

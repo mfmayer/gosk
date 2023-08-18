@@ -18,10 +18,15 @@
     "generators": {
       "type": "object",
       "description": "Map of generators used by the skill functions.",
-      "additionalProperties": {
-        "type": "object",
-        "description": "Generator settings needed to create the generator.",
-        "additionalProperties": true
+      "properties": {
+        "typeID": {
+          "type": "string",
+          "description": "Generator Type ID to be used to create this generator"
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": true
+        }
       }
     }
   }
