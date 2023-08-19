@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"strings"
 
 	"github.com/mfmayer/gosk/pkg/llm"
 )
+
+// SkillFactoryFunc to create a semantic skill with the help of given generators
+type SkillFactoryFunc func(generatorFactories llm.GeneratorFactoryMap) (skill *Skill, err error)
 
 // Skill defines and holds a collection of Skill Functions that can be planned and called by the semantic kernel
 type Skill struct {
@@ -21,16 +23,25 @@ type Skill struct {
 	Plannable bool `json:"plannable,omitempty"`
 	// Functions that the skill provides
 	Functions map[string]*Function `json:"functions"`
+	// Generators that might be initialized while parsing a skill from a configuration
+	Generators map[string]llm.Generator `json:"-"`
 }
 
-// Call a skill function with given name and parameters
+func (s *Skill) String() string {
+	if s == nil {
+		return "undefined skill"
+	}
+	return fmt.Sprintf("skill `%s`", s.Name)
+}
+
+// Call a skill function with given name and input content
 func (s *Skill) Call(functionName string, input llm.Content) (response llm.Content, err error) {
 	function, ok := s.Functions[functionName]
 	if !ok {
 		return nil, fmt.Errorf("function `%s` not found", functionName)
 	}
-	// Check input for required parameters and eventually set default values
-	for _, parameter := range function.Parameters {
+	// Check input for required input properties and eventually set default values
+	for _, parameter := range function.InputProperties {
 		if parameter.Default != nil {
 			if input.Property(parameter.Name) == nil {
 				input.With(parameter.Name, parameter.Default)
@@ -51,13 +62,12 @@ func (s *Skill) Call(functionName string, input llm.Content) (response llm.Conte
 
 type skillConfig struct {
 	*Skill
-	Generators map[string]llm.GeneratorConfig `json:"generators"`
+	GeneratorConfigs map[string]llm.GeneratorConfig `json:"generators,omitempty"`
 }
 
-// ParseSemanticSkillFromFS parses a skill from a file system
-// fsys is the file system to parse the skill from (see assets/skills for examples)
-// generators is a map of generators that can be used by the skill
-func ParseSemanticSkillFromFS(fsys fs.FS, getGenerators func(generatorConfigs map[string]llm.GeneratorConfig) (llm.GeneratorMap, error)) (skill *Skill, err error) {
+// ParseSemanticSkillFromFS parses a skill from fsys file system (see assets/skills for examples).
+// Given generatorFactories are used to create and return generators that are configured for this skill.
+func ParseSemanticSkillFromFS(fsys fs.FS, generatorFactories llm.GeneratorFactoryMap, options ...createSemanticFunctionsOption) (skill *Skill, err error) {
 	// open config file
 	file, err := fsys.Open("config.json")
 	if err != nil {
@@ -85,40 +95,22 @@ func ParseSemanticSkillFromFS(fsys fs.FS, getGenerators func(generatorConfigs ma
 		err = fmt.Errorf("invalid skill `config.json`")
 		return
 	}
-	skill.Functions = map[string]*Function{}
 
-	// get configured generators
-	generators, err := getGenerators(skillConfig.Generators)
+	// create response generators
+	generators, err := generatorFactories.CreateGenerators(skillConfig.GeneratorConfigs)
 	if err != nil {
-		err = fmt.Errorf("getting generators failed: %w", err)
+		err = fmt.Errorf("creating generators failed: %w", err)
 		return
 	}
 
-	// find and parse skill functions in sub directories
-	entries, err := fs.ReadDir(fsys, ".")
+	// create configured skill functions
+	functions, err := ParseSemanticFunctionsFromFS(fsys, generators, options...)
 	if err != nil {
-		err = fmt.Errorf("reading file system failed: %w", err)
+		err = fmt.Errorf("parsing functions failed: %w", err)
 		return
 	}
-	for _, d := range entries {
-		if !d.IsDir() {
-			continue
-		}
-		// create subFS for subdirectory
-		subFS, err := fs.Sub(fsys, d.Name())
-		if err != nil {
-			// skip subdirectory if it is not possible to create subFS
-			continue
-		}
-		// create function from subFS
-		function, err := ParseSemanticFunctionFromFS(subFS, generators)
-		if err != nil {
-			// skip subdirectory if it is not possible to create function
-			continue
-		}
-		// add function to skill with its directory name as key
-		skill.Functions[strings.ToLower(d.Name())] = function
-	}
+	skill.Functions = functions
+	skill.Generators = generators
 
 	return
 }

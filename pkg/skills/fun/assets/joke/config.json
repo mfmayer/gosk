@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/function-schema-v01.json",
   "name": "Joke",
   "description": "Generate a funny joke.",
-  "parameters": {
+  "inputProperties": {
     "data": {
       "description": "Joke subject",
       "defaultValue": ""

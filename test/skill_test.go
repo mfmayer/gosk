@@ -9,7 +9,6 @@ import (
 	"github.com/mfmayer/gosk"
 	"github.com/mfmayer/gosk/pkg/gpt"
 	"github.com/mfmayer/gosk/pkg/llm"
-	"github.com/mfmayer/gosk/pkg/skills/fun"
 )
 
 func TestNewSemanticFunctionCall(t *testing.T) {
@@ -31,11 +30,11 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 	if err != nil {
 		t.Fatal(err)
 	}
-	generator, err := gpt.NewGenerator()
+	generator, err := gpt.Factory.New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	skillFunc := gosk.NewSemanticFunctionCall(template, generator)
+	skillFunc := gosk.NewDefaultSemanticFunctionCall(template, generator)
 	result, err := skillFunc(llm.NewContent("dinosaurs").With("style", "as a shortstory"))
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +43,7 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 }
 
 func TestParseSemanticFunctionFromFS(t *testing.T) {
-	generator, err := gpt.NewGenerator()
+	generator, err := gpt.Factory.New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,36 +62,94 @@ func TestParseSemanticFunctionFromFS(t *testing.T) {
 	t.Log(result)
 }
 
-func TestParseSemanticSkillFromFS(t *testing.T) {
-	getGenerators := func(configs map[string]llm.GeneratorConfig) (generators llm.GeneratorMap, err error) {
-		generators = llm.GeneratorMap{}
-		for k, v := range configs {
-			generator, err := gpt.NewGenerator(gpt.WithConfig(v))
-			if err != nil {
-				return nil, err
-			}
-			generators[k] = generator
-		}
-		return
-	}
-	fsys := os.DirFS("../pkg/skills/fun/assets")
-	skill, err := gosk.ParseSemanticSkillFromFS(fsys, getGenerators)
+func TestContentProperties(t *testing.T) {
+	generator, err := gpt.Factory.New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := skill.Call("joke", llm.NewContent("dinosaurs"))
-	if err != nil {
-		t.Fatal(err)
+	skillFunc := func(input llm.Content) (output llm.Content, err error) {
+		return generator.Generate(input)
 	}
-	t.Log(result)
-}
 
-func TestFunSkill(t *testing.T) {
-	skill, err := fun.New()
+	skprompt := `In the following you are getting a request from {{or .firstName "the user"}} and you are his personal assistant.
+
+THE FOLLOWING FUNCTIONS CAN BE USED AND COMBINED TO FULLFILL THE USERS REQUEST.
+[FUNCTIONS]
+{
+	"GetWeather": {
+		"description": "Get the weather forecast for today.", 
+		"inputProperties": {
+			"location": {
+				"description": "The location geocoordinates for which the weather information should be retrieved.",
+				"type": "object",
+				"properties": {
+					"latitude": {
+						"description": "The location's geocoordinates latitude.",
+						"type": "number"
+					},
+					"longitude": {
+						"description": "The location's geocoordinates longitude.",
+						"type": "number"
+					}
+				}
+			}
+		}
+	},
+	"GetUserLocation": {
+		"description": "Get the location geocoordinates from {{or .firstName "the user"}}",
+		"inputProperties": {}
+	}
+}
+[END FUNCTIONS]
+
+THE FOLLOWING FUNCTIONS HAVE BEEN ALREADY CALLED AND RETURNED THESE RESPONSES:
+[
+]
+
+PROVIDE A LIST OF FUNCTIONS THAT YOU MUST CALL NEXT IN ORDER GET ALL REMAINING INFOS YOU NEED TO FULLFILL THE REQUEST. USE ONLY PROPERTIES YOU KNOW. USE ONL THE GIVEN FUNCTIONS TO GET PROPERTIES YOU NEED. PROVIDE THE LIST IN THE FOLLOWING FORMAT:
+[
+	{
+		"designation": "Precise designation of the function call's response.",
+		"function": "Function name that shall be called",
+		"inputProperties": {
+			...
+		}
+	},
+	...
+]
+
+IF ALL NEEDED INFORMATION IS AVALILABLE PROVIDE AN EMPTY LIST: "[]"
+
++++++
+USER REQUEST: {{.request}}
++++++
+
+
+`
+
+	template, err := llm.TemplateFromText(skprompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	systemInput := llm.NewContent().
+		SetRole(llm.RoleSystem).
+		// With("weather", "{\"temperature\": 20, \"wind\": 10, \"rain\": 0, \"clouds\": 0, \"humidity\": 0, \"pressure\": 0, \"condition\": \"sunny\"}").
+		// With("weather", "{\"condition\": \"unknown\"}").
+		With("firstName", "Max").
+		With("botName", "Ida")
+		// With("location.latitude", 52.520008).
+		// With("location.longitude", 13.404954)
+	systemPrompt, err := llm.ExecuteTemplate(template, systemInput)
 	if err != nil {
 		log.Fatal(err)
 	}
-	result, err := skill.Call("joke", llm.NewContent("dinosaurs"))
+	systemInput.Set(systemPrompt).With("request", "Wie wird das Wetter heute?")
+
+	// input := llm.NewContent("Wie wird das Wetter heute?").WithPredecessor(systemInput)
+	// input = llm.NewContent("***FUNCTION_CALL:***: GetWeather()").SetRole(llm.RoleAssistant).WithPredecessor(input)
+
+	result, err := skillFunc(systemInput)
 	if err != nil {
 		t.Fatal(err)
 	}

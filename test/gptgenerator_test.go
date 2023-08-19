@@ -10,7 +10,7 @@ import (
 func TestGenerator(t *testing.T) {
 	var generator llm.Generator
 	var err error
-	generator, err = gpt.NewGenerator()
+	generator, err = gpt.Factory.New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +19,7 @@ func TestGenerator(t *testing.T) {
 	input = llm.NewContent("Hallo! Wie kann ich Ihnen helfen?").SetRole(llm.RoleAssistant).WithPredecessor(input)
 	input = llm.NewContent("Wie heisst du?").SetRole(llm.RoleUser).WithPredecessor(input)
 
-	response, err := generator.GenerateResponse(input)
+	response, err := generator.Generate(input)
 	if err != nil {
 		t.Fatal(err)
 	}

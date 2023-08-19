@@ -15,7 +15,7 @@
       "type": "boolean",
       "description": "Indicates whether the function can be used in a plan."
     },
-    "parameters": {
+    "inputProperties": {
       "type": "object",
       "additionalProperties": {
         "type": "object",

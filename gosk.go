@@ -15,21 +15,14 @@ var (
 
 // SemanticKernel
 type SemanticKernel struct {
-	// generators map[string]llm.Generator
-	skills map[string]*Skill
+	generatorFactories llm.GeneratorFactoryMap
+	skills             map[string]*Skill
 }
 
 type newKernelOption func(*newKernelOptions)
 
 type newKernelOptions struct {
 }
-
-// WithOpenAIKey to use this OpenAI key when creating a new semantic kernel, otherwise it's tried to get the key from "OPENAI_API_KEY" environment variable or .env file in current working directory
-// func WithOpenAIKey(key string) newKernelOption {
-// 	return func(opt *newKernelOptions) {
-// 		opt.openAIKey = key
-// 	}
-// }
 
 // NewKernel creates new kernel and tries to retrieve the OpenAI key from "OPENAI_API_KEY" environment variable or .env file in current working directory
 func NewKernel(opts ...newKernelOption) *SemanticKernel {
@@ -39,25 +32,24 @@ func NewKernel(opts ...newKernelOption) *SemanticKernel {
 	}
 
 	kernel := &SemanticKernel{
-		skills: map[string]*Skill{},
+		generatorFactories: llm.GeneratorFactoryMap{},
+		skills:             map[string]*Skill{},
 	}
 	return kernel
 }
 
-// AddSkillsMap adds skills map to the kernel with adopted keys as skill names
-// func (sk *SemanticKernel) AddSkillsMap(skills map[string]*Skill) (err error) {
-// 	for skillName, skill := range skills {
-// 		err = errors.Join(err, sk.addSkill(skillName, skill))
-// 	}
-// 	return
-// }
+func (sk *SemanticKernel) RegisterGeneratorFactories(factories ...llm.GeneratorFactory) {
+	for _, factory := range factories {
+		sk.generatorFactories[factory.TypeID()] = factory
+	}
+}
 
-// CreateAndAddSkills creates new skills and adds them to the kernel with their individual names
-func (sk *SemanticKernel) CreateAndAddSkills(newSkillFunctions ...func() (skill *Skill, err error)) (err error) {
-	for _, newSkillFunc := range newSkillFunctions {
-		skill, newSkillErr := newSkillFunc()
+// RegisterSkills creates new skills with their factories and adds them to the kernel with their individual names
+func (sk *SemanticKernel) RegisterSkills(skillFactories ...SkillFactoryFunc) (err error) {
+	for _, skillFactory := range skillFactories {
+		skill, newSkillErr := skillFactory(sk.generatorFactories)
 		if newSkillErr != nil {
-			err = errors.Join(err, newSkillErr)
+			err = errors.Join(err, fmt.Errorf("error registering %s: %w", skill, newSkillErr))
 			continue
 		}
 		err = errors.Join(err, sk.addSkill(skill.Name, skill))
@@ -65,7 +57,7 @@ func (sk *SemanticKernel) CreateAndAddSkills(newSkillFunctions ...func() (skill 
 	return
 }
 
-// AddSkills adds skills to the kernel with their individual names
+// AddSkills adds already initialized skills to the kernel with their individual names
 func (sk *SemanticKernel) AddSkills(skills ...*Skill) (err error) {
 	for _, skill := range skills {
 		err = errors.Join(err, sk.addSkill(skill.Name, skill))
@@ -85,7 +77,7 @@ func (sk *SemanticKernel) addSkill(name string, skill *Skill) error {
 		if function.Name == "" {
 			function.Name = functionName
 		}
-		for parameterName, parameter := range function.Parameters {
+		for parameterName, parameter := range function.InputProperties {
 			if parameter.Name == "" {
 				parameter.Name = parameterName
 			}
@@ -142,7 +134,7 @@ func (sk *SemanticKernel) FindFunctions(functionPaths ...string) (functions []*F
 	return
 }
 
-// Call a skill function with given name and parameters and returns the response and/or an error
+// Call a skill function with given name and input. Returns the response and/or an error
 // The kernel also links the input as predecessor to the response
 func (sk *SemanticKernel) Call(skillName string, skillFunction string, input llm.Content) (response llm.Content, err error) {
 	if skill, ok := sk.skills[skillName]; ok {
@@ -167,20 +159,3 @@ func (sk *SemanticKernel) ChainCall(context llm.Content, functions ...*Function)
 	}
 	return
 }
-
-// func (k *SemanticKernel) ImportSkill(name string) (skill Skill, err error) {
-// 	fs, err := fs.Sub(embeddedSkillsDir, "assets/skills")
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	// return k.importSkill(fs, name)
-// }
-
-// func (k *SemanticKernel) ImportSkill(name string) (skill Skill, err error) {
-// 	fs, err := fs.Sub(embeddedSkillsDir, "assets/skills")
-// 	if err != nil {
-// 		return
-// 	}
-// 	// return k.importSkill(fs, name)
-// }
