@@ -17,6 +17,7 @@
     },
     "inputProperties": {
       "type": "object",
+      "description": "Input properties that the function supports/needs.",
       "additionalProperties": {
         "type": "object",
         "properties": {

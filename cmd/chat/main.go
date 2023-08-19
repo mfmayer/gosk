@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mfmayer/gosk"
+	"github.com/mfmayer/gosk/pkg/gpt"
 	"github.com/mfmayer/gosk/pkg/llm"
 	"github.com/mfmayer/gosk/pkg/skills/chat"
 )
@@ -24,15 +25,10 @@ func printOutput(output string) {
 }
 
 func main() {
-	// create chat skill
-	chatSkill, err := chat.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// create semantic kernel and add chat skill
 	kernel := gosk.NewKernel()
-	kernel.AddSkills(chatSkill)
+	kernel.RegisterGeneratorFactories(gpt.Factory)
+	kernel.RegisterSkills(chat.New)
 
 	// start chat
 	inputString := waitForInput()
