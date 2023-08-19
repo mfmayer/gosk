@@ -7,4 +7,4 @@ require (
 	github.com/mfmayer/gopenai v0.0.4
 )
 
-// replace github.com/mfmayer/gopenai => ../gopenai
+replace github.com/mfmayer/gopenai => ../gopenai
