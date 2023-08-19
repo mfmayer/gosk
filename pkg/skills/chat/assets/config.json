@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/skill-schema-v01.json",
+  "name": "chat",
+  "description": "A chat skill for chatting with a GPT model.",
+  "generators": {
+    "gpt-3.5-turbo": {
+      "typeID": "gpt",
+      "config": {
+        "model": "gpt-3.5-turbo",
+        "temperature": 0.7,
+        "max_tokens": 64,
+        "top_p": 1,
+        "frequency_penalty": 0,
+        "presence_penalty": 0
+      }
+    }
+  }
+}

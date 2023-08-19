@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/function-schema-v01.json",
+  "name": "chatgpt",
+  "description": "Chat with gpt model",
+  "plannable": true,
+  "generator": "gpt-3.5-turbo",
+  "inputProperties": {
+    "firstName": {
+      "description": "The user's first name",
+      "default": "John",
+      "type": "string"
+    },
+    "style": {
+      "description": "The chatbot's name",
+      "default": "Ida",
+      "type": "string"
+    },
+    "attitude": {
+      "description": "The chatbot's attitude",
+      "type": "string"
+    },
+    "language": {
+      "description": "The language that the user want's to speak",
+      "default": "English",
+      "type": "string"
+    },
+    "date": {
+      "description": "The current date",
+      "type": "string"
+    }
+  }
+}
