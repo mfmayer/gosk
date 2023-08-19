@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -8,7 +9,7 @@ import (
 // GeneratorFactory allows to create response generators
 type GeneratorFactory interface {
 	TypeID() string
-	New(config map[string]interface{}) (Generator, error)
+	New(config GeneratorConfigData) (Generator, error)
 }
 
 // Generator as a generic interface for large langage model response generators
@@ -19,8 +20,26 @@ type Generator interface {
 
 // GeneratorConfig to configure a specific generator's (defined by ID) response generator
 type GeneratorConfig struct {
-	TypeID           string                 `json:"typeID"`
-	ConfigProperties map[string]interface{} `json:"config,omitempty"`
+	TypeID           string              `json:"typeID"`
+	ConfigProperties GeneratorConfigData `json:"config,omitempty"`
+}
+
+type GeneratorConfigData map[string]interface{}
+
+// Convert config data into given object
+func (gcd *GeneratorConfigData) Convert(to interface{}) (err error) {
+	if gcd == nil {
+		return
+	}
+	jsonData, err := json.Marshal(gcd)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(jsonData, to)
+	if err != nil {
+		return err
+	}
+	return
 }
 
 // GeneratorFactoryMap is a map of generator factories of different types

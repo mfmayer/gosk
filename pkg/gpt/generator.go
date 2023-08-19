@@ -15,22 +15,27 @@ func (f *gptFactory) TypeID() string {
 	return "gpt"
 }
 
-func (f *gptFactory) New(config map[string]interface{}) (generator llm.Generator, err error) {
+func (f *gptFactory) New(config llm.GeneratorConfigData) (generator llm.Generator, err error) {
 	key, err := getOpenAIKey()
 	if err != nil {
 		return
 	}
 	chatClient := gopenai.NewChatClient(key)
-	generator = &Generator{
-		model:      "gpt-3.5-turbo", // FIXME: should be set by config
+	// generatorConfig := gopenai.ChatPromptConfig{}
+	// config.Convert(&generatorConfig)
+	gptGenerator := &Generator{
+		//model:      "gpt-3.5-turbo", // FIXME: should be set by config
+		config:     &gopenai.ChatPromptConfig{},
 		chatClient: chatClient,
 	}
+	config.Convert(gptGenerator.config)
+	generator = gptGenerator
 	return
 }
 
 // GPT35Generator represents the OpenAI GPT3.5 Model and implements the llm.Generator interface
 type Generator struct {
-	model      string
+	config     *gopenai.ChatPromptConfig
 	chatClient *gopenai.ChatClient
 }
 
@@ -54,8 +59,8 @@ func (gpt *Generator) Generate(input llm.Content) (response llm.Content, err err
 
 	// create chat prompt
 	chatPrompt := gopenai.ChatPrompt{
-		Model:    gpt.model,
-		Messages: make([]*gopenai.Message, 0, len(inputSlice)),
+		ChatPromptConfig: gpt.config,
+		Messages:         make([]*gopenai.Message, 0, len(inputSlice)),
 	}
 	// iterate over input slice in reverse order to get the correct order of messages
 	for i := len(inputSlice) - 1; i >= 0; i-- {
