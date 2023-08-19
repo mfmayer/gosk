@@ -11,6 +11,8 @@ import (
 var (
 	// ErrMissingParameter is returned when a required parameter is missing
 	ErrMissingParameter = errors.New("missing parameter")
+	ErrSkillNotFound    = errors.New("skill not found")
+	ErrFunctionNotFound = errors.New("function not found")
 )
 
 // SemanticKernel
@@ -92,70 +94,97 @@ func (sk *SemanticKernel) addSkill(name string, skill *Skill) error {
 }
 
 // FindSkill finds a skill by name and returns it or an error if not found
-func (sk *SemanticKernel) FindSkill(skillName string) (skill *Skill, ok bool) {
+func (sk *SemanticKernel) FindSkill(skillName string) (skill *Skill, err error) {
 	if skill, ok := sk.skills[skillName]; ok {
-		return skill, true
+		return skill, nil
 	}
-	return nil, false
+	return nil, ErrSkillNotFound
 }
 
 // FindFunction finds a function in a skill by name and returns it or an error if not found
-func (sk *SemanticKernel) FindFunction(skillName string, skillFunction string) (function *Function, ok bool) {
-	if skill, ok := sk.FindSkill(skillName); ok {
-		if function, ok := skill.Functions[skillFunction]; ok {
-			return function, true
-		}
+func (sk *SemanticKernel) FindFunction(skillName string, skillFunction string) (function *Function, err error) {
+	skill, err := sk.FindSkill(skillName)
+	if err != nil {
+		return
 	}
-	return nil, false
+	if function, ok := skill.Functions[skillFunction]; ok {
+		return function, nil
+	}
+	return nil, ErrFunctionNotFound
 }
 
 // FindFunctions finds functions with path notation (`skillName.functionName`) and returns them or an error if any function is not found
 func (sk *SemanticKernel) FindFunctions(functionPaths ...string) (functions []*Function, err error) {
 	if len(functionPaths) == 0 {
-		return nil, fmt.Errorf("no function path given")
+		return nil, fmt.Errorf("%w: missing path", ErrFunctionNotFound)
 	}
 	functions = make([]*Function, 0, len(functionPaths))
-	pathsNotFound := []string{}
 	for _, fp := range functionPaths {
 		fps := strings.Split(fp, ".")
 		if len(fps) != 2 {
-			pathsNotFound = append(pathsNotFound, fp)
+			err = errors.Join(err, fmt.Errorf("%w: path `%s` invalid", ErrFunctionNotFound, fp))
 			continue
 		}
-		if function, ok := sk.FindFunction(fps[0], fps[1]); ok {
+		function, findErr := sk.FindFunction(fps[0], fps[1])
+		if findErr == nil {
 			functions = append(functions, function)
 		} else {
-			pathsNotFound = append(pathsNotFound, fp)
+			err = errors.Join(err, fmt.Errorf("%w: %s", findErr, fp))
 		}
-	}
-	if len(pathsNotFound) > 0 {
-		err = fmt.Errorf("functions %v not found", pathsNotFound)
 	}
 	return
 }
 
-// Call a skill function with given name and input. Returns the response and/or an error
-// The kernel also links the input as predecessor to the response
-func (sk *SemanticKernel) Call(skillName string, skillFunction string, input llm.Content) (response llm.Content, err error) {
-	if skill, ok := sk.skills[skillName]; ok {
-		response, err = skill.Call(skillFunction, input)
-		if response != nil {
-			response.WithPredecessor(input)
-		}
+// CallWithName as shortcut to SemanticKernel.FindFunction and SemanticKernel.Call
+func (sk *SemanticKernel) CallWithName(input llm.Content, skillName string, skillFunction string) (response llm.Content, err error) {
+	function, err := sk.FindFunction(skillName, skillFunction)
+	if err != nil {
 		return
 	}
-	return nil, fmt.Errorf("skill `%s` not found", skillName)
+	return sk.Call(input, function)
 }
 
 // ChainCall to call multiple functions in a row
-// context is passed to all functions and context["data"] is updated with the response of each function
+// context is passed to all functions and context value is updated with the response of each function
 func (sk *SemanticKernel) ChainCall(context llm.Content, functions ...*Function) (response llm.Content, err error) {
 	for _, function := range functions {
-		if response, err = function.Call(context); err != nil {
+		// if response, err = function.Call(context); err != nil {
+		if response, err = sk.Call(context, function); err != nil {
 			err = fmt.Errorf("error calling function `%s`: %w", function.Name, err)
 			return
 		}
 		context.Set(response.Value())
+	}
+	return
+}
+
+// Call fiven function with given input. Links the input as predecessor to the response.
+func (sk *SemanticKernel) Call(input llm.Content, function *Function) (response llm.Content, err error) {
+	if function == nil {
+		err = errors.New("function is nil")
+		return
+	}
+	// Check input for required input properties and eventually set default values
+	for _, parameter := range function.InputProperties {
+		if parameter.Default != nil {
+			if input.Property(parameter.Name) == nil {
+				input.With(parameter.Name, parameter.Default)
+			}
+		}
+		if parameter.Required {
+			if input.Property(parameter.Name) == nil {
+				err = errors.Join(err, fmt.Errorf("%w: `%s` (function: %s)", ErrMissingParameter, parameter.Name, function.Name))
+			}
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	// Call function
+	response, err = function.Call(input)
+	if response != nil {
+		// if valid add input as predecessor
+		response.WithPredecessor(input)
 	}
 	return
 }

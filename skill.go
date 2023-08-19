@@ -2,7 +2,6 @@ package gosk
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -35,30 +34,30 @@ func (s *Skill) String() string {
 }
 
 // Call a skill function with given name and input content
-func (s *Skill) Call(functionName string, input llm.Content) (response llm.Content, err error) {
-	function, ok := s.Functions[functionName]
-	if !ok {
-		return nil, fmt.Errorf("function `%s` not found", functionName)
-	}
-	// Check input for required input properties and eventually set default values
-	for _, parameter := range function.InputProperties {
-		if parameter.Default != nil {
-			if input.Property(parameter.Name) == nil {
-				input.With(parameter.Name, parameter.Default)
-			}
-		}
-		if parameter.Required {
-			if input.Property(parameter.Name) == nil {
-				err = errors.Join(err, fmt.Errorf("%w: `%s`", ErrMissingParameter, parameter.Name))
-			}
-		}
+// func (s *Skill) Call(functionName string, input llm.Content) (response llm.Content, err error) {
+// 	function, ok := s.Functions[functionName]
+// 	if !ok {
+// 		return nil, fmt.Errorf("function `%s` not found", functionName)
+// 	}
+// 	// Check input for required input properties and eventually set default values
+// 	for _, parameter := range function.InputProperties {
+// 		if parameter.Default != nil {
+// 			if input.Property(parameter.Name) == nil {
+// 				input.With(parameter.Name, parameter.Default)
+// 			}
+// 		}
+// 		if parameter.Required {
+// 			if input.Property(parameter.Name) == nil {
+// 				err = errors.Join(err, fmt.Errorf("%w: `%s`", ErrMissingParameter, parameter.Name))
+// 			}
+// 		}
 
-	}
-	if err != nil {
-		return nil, err
-	}
-	return function.Call(input)
-}
+// 	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return function.Call(input)
+// }
 
 type skillConfig struct {
 	*Skill
