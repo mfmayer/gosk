@@ -34,7 +34,7 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 	if err != nil {
 		t.Fatal(err)
 	}
-	skillFunc := gosk.NewSemanticFunctionCall(template, generator)
+	skillFunc := gosk.NewDefaultSemanticFunctionCall(template, generator)
 	result, err := skillFunc(llm.NewContent("dinosaurs").With("style", "as a shortstory"))
 	if err != nil {
 		t.Fatal(err)

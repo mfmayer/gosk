@@ -15,8 +15,8 @@ var (
 
 // SemanticKernel
 type SemanticKernel struct {
-	generators llm.GeneratorFactoryMap
-	skills     map[string]*Skill
+	generatorFactories llm.GeneratorFactoryMap
+	skills             map[string]*Skill
 }
 
 type newKernelOption func(*newKernelOptions)
@@ -32,22 +32,22 @@ func NewKernel(opts ...newKernelOption) *SemanticKernel {
 	}
 
 	kernel := &SemanticKernel{
-		generators: llm.GeneratorFactoryMap{},
-		skills:     map[string]*Skill{},
+		generatorFactories: llm.GeneratorFactoryMap{},
+		skills:             map[string]*Skill{},
 	}
 	return kernel
 }
 
-func (sk *SemanticKernel) RegisterGenerators(generators ...llm.GeneratorFactory) {
-	for _, generator := range generators {
-		sk.generators[generator.TypeID()] = generator
+func (sk *SemanticKernel) RegisterGeneratorFactories(factories ...llm.GeneratorFactory) {
+	for _, factory := range factories {
+		sk.generatorFactories[factory.TypeID()] = factory
 	}
 }
 
-// RegisterSkills creates new skills and adds them to the kernel with their individual names
+// RegisterSkills creates new skills with their factories and adds them to the kernel with their individual names
 func (sk *SemanticKernel) RegisterSkills(skillFactories ...SkillFactoryFunc) (err error) {
 	for _, skillFactory := range skillFactories {
-		skill, newSkillErr := skillFactory(sk.generators)
+		skill, newSkillErr := skillFactory(sk.generatorFactories)
 		if newSkillErr != nil {
 			err = errors.Join(err, fmt.Errorf("error registering %s: %w", skill, newSkillErr))
 			continue
@@ -57,7 +57,7 @@ func (sk *SemanticKernel) RegisterSkills(skillFactories ...SkillFactoryFunc) (er
 	return
 }
 
-// AddSkills adds skills to the kernel with their individual names
+// AddSkills adds already initialized skills to the kernel with their individual names
 func (sk *SemanticKernel) AddSkills(skills ...*Skill) (err error) {
 	for _, skill := range skills {
 		err = errors.Join(err, sk.addSkill(skill.Name, skill))

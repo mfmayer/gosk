@@ -11,12 +11,12 @@ import (
 //go:embed assets
 var fsAssets embed.FS
 
-func New(generators llm.GeneratorFactoryMap) (skill *gosk.Skill, err error) {
+func New(generatorFactories llm.GeneratorFactoryMap) (skill *gosk.Skill, err error) {
 	subFS, err := fs.Sub(fsAssets, "assets")
 	if err != nil {
 		return
 	}
-	skill, err = gosk.ParseSemanticSkillFromFS(subFS, generators)
+	skill, err = gosk.ParseSemanticSkillFromFS(subFS, generatorFactories)
 	if err != nil {
 		return
 	}

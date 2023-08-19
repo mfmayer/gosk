@@ -12,7 +12,7 @@ import (
 
 func TestKernel(t *testing.T) {
 	kernel := gosk.NewKernel()
-	kernel.RegisterGenerators(gpt.Factory)
+	kernel.RegisterGeneratorFactories(gpt.Factory)
 	err := kernel.RegisterSkills(fun.New, writer.New)
 	if err != nil {
 		t.Fatal(err)

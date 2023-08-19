@@ -3,9 +3,11 @@ package gosk
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"strings"
 	"text/template"
 
 	"github.com/mfmayer/gosk/pkg/llm"
@@ -48,14 +50,100 @@ type Function struct {
 	Call func(input llm.Content) (output llm.Content, err error) `json:"-"`
 }
 
+// functionConfig is used to unmarshal function configuration into it
 type functionConfig struct {
 	*Function
 	Generator string `json:"generator"`
 }
 
+type createSemanticFunctionsOptionProperties struct {
+	createSemanticFunctions map[string]func(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error))
+}
+
+type createSemanticFunctionsOption func(properties *createSemanticFunctionsOptionProperties)
+
+// WithCustomCallForFunc allows to create selectively custom semantic function calls while parsing multiple semantic functions with ParseSemanticFunctionsFromFS
+func WithCustomCallForFunc(funcName string, createSemanticFunctionCall func(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error))) (option createSemanticFunctionsOption) {
+	option = func(properties *createSemanticFunctionsOptionProperties) {
+		properties.createSemanticFunctions[funcName] = createSemanticFunctionCall
+	}
+	return
+}
+
+func ParseSemanticFunctionsFromFS(fsys fs.FS, generators map[string]llm.Generator, options ...createSemanticFunctionsOption) (functions map[string]*Function, err error) {
+	optionProperties := createSemanticFunctionsOptionProperties{
+		createSemanticFunctions: map[string]func(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error)){},
+	}
+	for _, option := range options {
+		option(&optionProperties)
+	}
+	functions = map[string]*Function{}
+	// find and parse skill functions in sub directories
+	entries, err := fs.ReadDir(fsys, ".")
+	if err != nil {
+		err = fmt.Errorf("reading file system failed: %w", err)
+		return
+	}
+	for _, d := range entries {
+		if !d.IsDir() {
+			continue
+		}
+		// create subFS for subdirectory
+		subFS, subErr := fs.Sub(fsys, d.Name())
+		if subErr != nil {
+			// skip subdirectory if it is not possible to create subFS
+			continue
+		}
+		// functionName
+		functionName := strings.ToLower(d.Name())
+		var function *Function
+		var parseFunctionErr error
+		// check for custom option
+		if custemCreateSemanticFunctionCall, ok := optionProperties.createSemanticFunctions[functionName]; ok {
+			// create function with given option
+			function, parseFunctionErr = ParseSemanticFunctionFromFS(subFS, generators, WithCustomCall(custemCreateSemanticFunctionCall))
+		} else {
+			// create default function
+			function, parseFunctionErr = ParseSemanticFunctionFromFS(subFS, generators)
+		}
+		if parseFunctionErr != nil {
+			if !errors.Is(parseFunctionErr, fs.ErrNotExist) {
+				// if function config file doesn't exist ignore the error and
+				// go to next subdirectory - otherwise join the error for returning it
+				err = errors.Join(err, parseFunctionErr)
+			}
+			// skip subdirectory if it is not possible to create function
+			continue
+		}
+		// add function to skill with its directory name as key
+		functions[functionName] = function
+	}
+	return
+}
+
+type parseSemanticFunctionFromFSOptionProperties struct {
+	createSemanticFunction func(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error))
+}
+
+type parseSemanticFunctionFromFSOption func(properties *parseSemanticFunctionFromFSOptionProperties)
+
+// WithCustomCall allows to create a custom semantic function call while parsing a semantic function with ParseSemanticFunctionFromFS
+func WithCustomCall(createSemanticFunctionCall func(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error))) (option parseSemanticFunctionFromFSOption) {
+	option = func(properties *parseSemanticFunctionFromFSOptionProperties) {
+		properties.createSemanticFunction = createSemanticFunctionCall
+	}
+	return
+}
+
 // ParseFunctionFromFS finds "config.json" with function comfiguration.
 // Prompt templates will be created from "*.tmpl" files with at least "skprompt.tmpl" is needed
-func ParseSemanticFunctionFromFS(fsys fs.FS, generators map[string]llm.Generator) (function *Function, err error) {
+func ParseSemanticFunctionFromFS(fsys fs.FS, generators map[string]llm.Generator, options ...parseSemanticFunctionFromFSOption) (function *Function, err error) {
+	optionProperties := parseSemanticFunctionFromFSOptionProperties{
+		createSemanticFunction: NewDefaultSemanticFunctionCall,
+	}
+	for _, option := range options {
+		option(&optionProperties)
+	}
 	// open config file
 	file, err := fsys.Open("config.json")
 	if err != nil {
@@ -91,12 +179,12 @@ func ParseSemanticFunctionFromFS(fsys fs.FS, generators map[string]llm.Generator
 	template, err := llm.TemplateFromFS(fsys, "*.tmpl")
 
 	// create function call
-	function.Call = NewSemanticFunctionCall(template, generator)
+	function.Call = optionProperties.createSemanticFunction(template, generator)
 	return
 }
 
-// NewSemanticFunctionCall creates a new semantic skill function with a prompt template and a generator
-func NewSemanticFunctionCall(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error)) {
+// NewDefaultSemanticFunctionCall creates a new semantic skill function with a prompt template and a generator
+func NewDefaultSemanticFunctionCall(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error)) {
 	if promptTemplate == nil {
 		return
 	}
