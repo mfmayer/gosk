@@ -6,11 +6,17 @@ import (
 	"fmt"
 )
 
-// GeneratorFactory allows to create response generators
-type GeneratorFactory interface {
-	TypeID() string
-	New(config GeneratorConfigData) (Generator, error)
-}
+// RegistrationFunc is used to register a new type of generator with the go semantic kernel (gosk)
+type RegistrationFunc func() (typeID string, newGenerator NewGeneratorFunc)
+
+// NewGeneratorFunc creates a new generator with given config
+type NewGeneratorFunc func(config GeneratorConfigData) (Generator, error)
+
+// // GeneratorFactory allows to create response generators
+// type GeneratorFactory interface {
+// 	TypeID() string
+// 	New(config GeneratorConfigData) (Generator, error)
+// }
 
 // Generator as a generic interface for large langage model response generators
 type Generator interface {
@@ -42,27 +48,27 @@ func (gcd *GeneratorConfigData) Convert(to interface{}) (err error) {
 	return
 }
 
-// GeneratorFactoryMap is a map of generator factories of different types
-type GeneratorFactoryMap map[string]GeneratorFactory
+// NewGeneratorFuncMap is a map of generator factories of different types
+type NewGeneratorFuncMap map[string]NewGeneratorFunc
 
-func (gm GeneratorFactoryMap) CreateGenerator(typeID string, config map[string]interface{}) (Generator, error) {
-	generatorFactory, ok := gm[typeID]
+func (gm NewGeneratorFuncMap) CreateGenerator(typeID string, config map[string]interface{}) (Generator, error) {
+	newGeneratorFunc, ok := gm[typeID]
 	if !ok {
 		return nil, fmt.Errorf("%w: `%s`", ErrUnknownGeneratorType, typeID)
 	}
-	return generatorFactory.New(config)
+	return newGeneratorFunc(config)
 }
 
 // CreateResponseGenerators creates response generators map from a given config map. Their keys are the names of the response generators.
-func (gm GeneratorFactoryMap) CreateGenerators(generatorConfigs map[string]GeneratorConfig) (generators map[string]Generator, err error) {
+func (gm NewGeneratorFuncMap) CreateGenerators(generatorConfigs map[string]GeneratorConfig) (generators map[string]Generator, err error) {
 	generators = map[string]Generator{}
 	for generatorName, generatorConfig := range generatorConfigs {
-		generatorFactory, ok := gm[generatorConfig.TypeID]
+		newGeneratorFunc, ok := gm[generatorConfig.TypeID]
 		if !ok {
 			err = errors.Join(err, fmt.Errorf("%w: `%s`", ErrUnknownGeneratorType, generatorConfig.TypeID))
 			continue
 		}
-		generator, newGenError := generatorFactory.New(generatorConfig.ConfigProperties)
+		generator, newGenError := newGeneratorFunc(generatorConfig.ConfigProperties)
 		if newGenError != nil {
 			err = errors.Join(err, fmt.Errorf("creating generator \"%s\" failed: %w", generatorName, newGenError))
 			continue

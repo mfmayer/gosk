@@ -27,30 +27,37 @@ func printOutput(output string) {
 func main() {
 	// create semantic kernel and add chat skill
 	kernel := gosk.NewKernel()
-	kernel.RegisterGeneratorFactories(gpt.Factory)
-	kernel.RegisterSkills(chat.New)
+	kernel.RegisterGenerators(gpt.Register)
+	kernel.RegisterSkills(chat.Register)
+
+	chatFunction, err := kernel.FindFunction("chat", "chatgpt")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// start chat
 	inputString := waitForInput()
 	input := llm.NewContent(inputString).
-		SetRole(llm.RoleUser).
-		With("date", time.Now().String()).
-		With("botName", "Ida").
-		With("firstName", "John").
-		With("language", "german")
-	response, err := kernel.Call("chat", "chatgpt", input)
-	if err != nil {
-		log.Fatal(err)
-	}
+		SetRole(llm.RoleUser).With("date", time.Now().String()).
+		With("botName", "Ida").With("firstName", "John").With("language", "german")
+	// response, err := kernel.Call(input, chatFunction)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	var response llm.Content
 	for {
-		printOutput(response.String())
-		inputString := waitForInput()
-		input := llm.NewContent(inputString).
-			SetRole(llm.RoleUser).
-			WithPredecessor(response)
-		response, err = kernel.Call("chat", "chatgpt", input)
+		response, err = kernel.Call(input, chatFunction)
 		if err != nil {
 			log.Fatal(err)
 		}
+		printOutput(response.String())
+		inputString := waitForInput()
+		input = llm.NewContent(inputString).
+			SetRole(llm.RoleUser).
+			WithPredecessor(response)
+		// response, err = kernel.CallWithName(input, "chat", "chatgpt")
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 	}
 }

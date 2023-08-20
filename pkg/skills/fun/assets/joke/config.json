@@ -5,7 +5,7 @@
   "inputProperties": {
     "data": {
       "description": "Joke subject",
-      "defaultValue": ""
+      "required": true
     },
     "style": {
       "description": "Joke style",

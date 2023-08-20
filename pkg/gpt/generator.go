@@ -7,15 +7,13 @@ import (
 	"github.com/mfmayer/gosk/pkg/llm"
 )
 
-var Factory *gptFactory
-
-type gptFactory struct{}
-
-func (f *gptFactory) TypeID() string {
-	return "gpt"
+func Register() (typeID string, newGenerator llm.NewGeneratorFunc) {
+	typeID = "gpt"
+	newGenerator = NewGenerator
+	return
 }
 
-func (f *gptFactory) New(config llm.GeneratorConfigData) (generator llm.Generator, err error) {
+func NewGenerator(config llm.GeneratorConfigData) (generator llm.Generator, err error) {
 	key, err := getOpenAIKey()
 	if err != nil {
 		return

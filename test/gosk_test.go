@@ -12,8 +12,8 @@ import (
 
 func TestKernel(t *testing.T) {
 	kernel := gosk.NewKernel()
-	kernel.RegisterGeneratorFactories(gpt.Factory)
-	err := kernel.RegisterSkills(fun.New, writer.New)
+	kernel.RegisterGenerators(gpt.Register)
+	err := kernel.RegisterSkills(fun.Register, writer.Register)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +22,27 @@ func TestKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := kernel.ChainCall(llm.NewContent("flowers").With("language", "german"), functions...)
+	result, err := kernel.Call(llm.NewContent("flowers").With("language", "german"), functions...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(result.String())
+}
+
+func TestFunSkill(t *testing.T) {
+	kernel := gosk.NewKernel()
+	kernel.RegisterGenerators(gpt.Register)
+	err := kernel.RegisterSkills(fun.Register)
+	if err != nil {
+		t.Fatal(err)
+	}
+	functions, err := kernel.FindFunctions("fun.joke")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := kernel.Call(llm.NewContent("dinosaur").
+		With("style", "AS A ONE-LINER."),
+		functions...)
 	if err != nil {
 		t.Fatal(err)
 	}

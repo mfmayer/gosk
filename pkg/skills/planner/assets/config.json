@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mfmayer/gosk/main/api/json-schema/function-schema-v01.json",
+  "name": "plan",
+  "description": "plan the usage of different skills to accomplish a specific task",
+  "plannable": false,
+  "generator": "gpt-3.5-turbo",
+  "inputProperties": {
+    "skills": {
+      "description": "The user's first name",
+      "default": "John",
+      "type": "string"
+    }
+  }
+}

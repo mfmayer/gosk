@@ -10,7 +10,7 @@ import (
 func TestGenerator(t *testing.T) {
 	var generator llm.Generator
 	var err error
-	generator, err = gpt.Factory.New(nil)
+	generator, err = gpt.NewGenerator(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,8 +9,9 @@ import (
 	"github.com/mfmayer/gosk/pkg/llm"
 )
 
-// SkillFactoryFunc to create a semantic skill with the help of given generators
-type SkillFactoryFunc func(generatorFactories llm.GeneratorFactoryMap) (skill *Skill, err error)
+// SkillRegistrationFunc is used to register a skill with the go semantic kernel (gosk).
+// Therefore it can use all generators that have been registered with the kernel.
+type SkillRegistrationFunc func(generatorFactories llm.NewGeneratorFuncMap) (skill *Skill, err error)
 
 // Skill defines and holds a collection of Skill Functions that can be planned and called by the semantic kernel
 type Skill struct {
@@ -66,7 +67,7 @@ type skillConfig struct {
 
 // ParseSemanticSkillFromFS parses a skill from fsys file system (see assets/skills for examples).
 // Given generatorFactories are used to create and return generators that are configured for this skill.
-func ParseSemanticSkillFromFS(fsys fs.FS, generatorFactories llm.GeneratorFactoryMap, options ...createSemanticFunctionsOption) (skill *Skill, err error) {
+func ParseSemanticSkillFromFS(fsys fs.FS, generatorFactories llm.NewGeneratorFuncMap, options ...createSemanticFunctionsOption) (skill *Skill, err error) {
 	// open config file
 	file, err := fsys.Open("config.json")
 	if err != nil {

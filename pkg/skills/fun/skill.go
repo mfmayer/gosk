@@ -11,7 +11,7 @@ import (
 //go:embed assets
 var fsAssets embed.FS
 
-func New(generatorFactories llm.GeneratorFactoryMap) (skill *gosk.Skill, err error) {
+func Register(generatorFactories llm.NewGeneratorFuncMap) (skill *gosk.Skill, err error) {
 	subFS, err := fs.Sub(fsAssets, "assets")
 	if err != nil {
 		return

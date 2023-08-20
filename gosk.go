@@ -10,15 +10,16 @@ import (
 
 var (
 	// ErrMissingParameter is returned when a required parameter is missing
-	ErrMissingParameter = errors.New("missing parameter")
-	ErrSkillNotFound    = errors.New("skill not found")
-	ErrFunctionNotFound = errors.New("function not found")
+	ErrGeneratorAlreadyRegistered = errors.New("generator already registered")
+	ErrMissingParameter           = errors.New("missing parameter")
+	ErrSkillNotFound              = errors.New("skill not found")
+	ErrFunctionNotFound           = errors.New("function not found")
 )
 
 // SemanticKernel
 type SemanticKernel struct {
-	generatorFactories llm.GeneratorFactoryMap
-	skills             map[string]*Skill
+	registeredGenerators llm.NewGeneratorFuncMap
+	skills               map[string]*Skill
 }
 
 type newKernelOption func(*newKernelOptions)
@@ -34,24 +35,30 @@ func NewKernel(opts ...newKernelOption) *SemanticKernel {
 	}
 
 	kernel := &SemanticKernel{
-		generatorFactories: llm.GeneratorFactoryMap{},
-		skills:             map[string]*Skill{},
+		registeredGenerators: llm.NewGeneratorFuncMap{},
+		skills:               map[string]*Skill{},
 	}
 	return kernel
 }
 
-func (sk *SemanticKernel) RegisterGeneratorFactories(factories ...llm.GeneratorFactory) {
-	for _, factory := range factories {
-		sk.generatorFactories[factory.TypeID()] = factory
+// RegisterGenerators registers new generators with their registaration functions and make them available to skills
+func (sk *SemanticKernel) RegisterGenerators(registrationFuncs ...llm.RegistrationFunc) (err error) {
+	for _, factory := range registrationFuncs {
+		typeID, newGeneratorFunc := factory()
+		if _, exists := sk.registeredGenerators[typeID]; exists {
+			err = errors.Join(err, fmt.Errorf("%w: %s", ErrGeneratorAlreadyRegistered, typeID))
+		}
+		sk.registeredGenerators[typeID] = newGeneratorFunc
 	}
+	return
 }
 
-// RegisterSkills creates new skills with their factories and adds them to the kernel with their individual names
-func (sk *SemanticKernel) RegisterSkills(skillFactories ...SkillFactoryFunc) (err error) {
-	for _, skillFactory := range skillFactories {
-		skill, newSkillErr := skillFactory(sk.generatorFactories)
-		if newSkillErr != nil {
-			err = errors.Join(err, fmt.Errorf("error registering %s: %w", skill, newSkillErr))
+// RegisterSkills registers new skills with their registration functions and adds them to the kernel with their individual names
+func (sk *SemanticKernel) RegisterSkills(registrationFuncs ...SkillRegistrationFunc) (err error) {
+	for _, registrationFunc := range registrationFuncs {
+		skill, registrationErr := registrationFunc(sk.registeredGenerators)
+		if registrationErr != nil {
+			err = errors.Join(err, fmt.Errorf("error registering %s: %w", skill, registrationErr))
 			continue
 		}
 		err = errors.Join(err, sk.addSkill(skill.Name, skill))
@@ -144,22 +151,26 @@ func (sk *SemanticKernel) CallWithName(input llm.Content, skillName string, skil
 	return sk.Call(input, function)
 }
 
-// ChainCall to call multiple functions in a row
-// context is passed to all functions and context value is updated with the response of each function
-func (sk *SemanticKernel) ChainCall(context llm.Content, functions ...*Function) (response llm.Content, err error) {
+// Call one or more functions in a row.
+// The given input (incl. all its properties) is passed to each function after it has been
+// updated with the previous function's response value.
+func (sk *SemanticKernel) Call(input llm.Content, functions ...*Function) (response llm.Content, err error) {
+	initialValue := input.Value()
 	for _, function := range functions {
 		// if response, err = function.Call(context); err != nil {
-		if response, err = sk.Call(context, function); err != nil {
+		if response, err = sk.call(input, function); err != nil {
 			err = fmt.Errorf("error calling function `%s`: %w", function.Name, err)
 			return
 		}
-		context.Set(response.Value())
+		input.Set(response.Value())
 	}
+	// restore initial input value
+	input.Set(initialValue)
 	return
 }
 
-// Call fiven function with given input. Links the input as predecessor to the response.
-func (sk *SemanticKernel) Call(input llm.Content, function *Function) (response llm.Content, err error) {
+// call given function with given input.
+func (sk *SemanticKernel) call(input llm.Content, function *Function) (response llm.Content, err error) {
 	if function == nil {
 		err = errors.New("function is nil")
 		return
@@ -182,9 +193,5 @@ func (sk *SemanticKernel) Call(input llm.Content, function *Function) (response 
 	}
 	// Call function
 	response, err = function.Call(input)
-	if response != nil {
-		// if valid add input as predecessor
-		response.WithPredecessor(input)
-	}
 	return
 }

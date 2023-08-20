@@ -7,12 +7,18 @@ import (
 )
 
 func TestFindEntry(t *testing.T) {
-	s := struct {
+	testStruct := struct {
 		Test int
 		Bla  string
 	}{10, "blubb"}
 
-	c := llm.NewContent("hallo").SetRole(llm.RoleUser).SetName("Hans").Set("prompt text").With("foo.bar", 5).With("foo.faa.fee", "{\"testVal\":5}").With("foo.faa", s)
+	c := llm.NewContent("hallo").
+		SetRole(llm.RoleUser).
+		SetName("Hans").
+		Set("prompt text").
+		With("foo.bar", 5).
+		With("foo.faa.fee", "{\"testVal\":5}").
+		With("foo.faa", testStruct)
 	entry := c.Property("foo.faa.Test")
 	entryValue := entry.Value()
 	t.Logf("Content: %v", entryValue)

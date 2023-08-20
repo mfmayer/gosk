@@ -30,7 +30,7 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 	if err != nil {
 		t.Fatal(err)
 	}
-	generator, err := gpt.Factory.New(nil)
+	generator, err := gpt.NewGenerator(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ BE CREATIVE AND FUNNY. I WANT TO LAUGH.
 }
 
 func TestParseSemanticFunctionFromFS(t *testing.T) {
-	generator, err := gpt.Factory.New(nil)
+	generator, err := gpt.NewGenerator(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestParseSemanticFunctionFromFS(t *testing.T) {
 }
 
 func TestContentProperties(t *testing.T) {
-	generator, err := gpt.Factory.New(nil)
+	generator, err := gpt.NewGenerator(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

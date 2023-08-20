@@ -2,7 +2,7 @@
 
 > ⚠️ Please note that gosk is currently in a very early stage of development. As such, there may be bugs or incomplete features. Your understanding and patience are much appreciated. I warmly welcome any [contributions](#contributing), suggestions, or bug reports to help improve the module.
 
-Go Semantic Kernel (gosk) is a Go module inspired by the Microsoft Semantic Kernel, originally designed to facilitate the integration of OpenAI's API and large language models in C# and Python applications. gosk extends this functionality to the Go programming language, thereby empowering Go developers to define and utilize AI skills and functions with ease, bringing the power of OpenAI's advanced language models to a broader programming community.
+Go Semantic Kernel (gosk) is a Go module inspired by the Microsoft Semantic Kernel, originally designed to facilitate the integration of OpenAI's API and large language models in C# and Python applications. **`gosk`** extends this functionality to the Go programming language, thereby empowering Go developers to define and utilize AI skills and functions with ease, bringing the power of OpenAI's advanced language models to a broader programming community.
 
 Using prompt engineering, gosk enables developers to define AI skills and functions, which can then be easily utilized within their applications.
 
@@ -18,7 +18,9 @@ go get github.com/mfmayer/gosk
 
 ## Usage
 
-Here's an example of how you can use gosk to import an AI skill and use it in your application:
+`gosk` comes with a few exemplary `Skills`. Each `Skill` can contain one or more `SkillFunctions`.
+
+A `SkillFunction` is called with input `Content` and returns a response `Content`.
 
 ```go
 package main
@@ -56,6 +58,42 @@ The resulting joke is printed to the console. E.g.:
 Why did the engineer install a doorbell on his desk?
 
 Because he wanted to hear when opportunity knocked!
+```
+
+## Skills and Functions
+
+Skills and their functions 
+
+```mermaid
+classDiagram
+	
+	class Test {
+		<<interface>>
+	
+	}
+	
+	%%note "From Duck till Zebra"!
+	Animal <|-- Duck
+	note for Duck "can fly\ncan swim\ncan dive\ncan help in debugging"
+	Animal <|-- Fish
+	Animal <|-- Zebra
+	Animal : +int age
+	Animal : +String gender
+	Animal: +isMammal()
+	Animal: +mate()
+	class Duck{
+			+String beakColor
+			+swim()
+			+quack()
+	}
+	class Fish{
+			-int sizeInFeet
+			-canEat()
+	}
+	class Zebra{
+			+bool is_wild
+			+run()
+	}
 ```
 
 ## Contributing

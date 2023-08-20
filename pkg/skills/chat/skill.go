@@ -12,11 +12,10 @@ import (
 //go:embed assets/*
 var fsAssets embed.FS
 
-func New(generatorFactories llm.GeneratorFactoryMap) (skill *gosk.Skill, err error) {
-
+func Register(generatorFactories llm.NewGeneratorFuncMap) (skill *gosk.Skill, err error) {
 	createChatFunction := func(promptTemplate *template.Template, generator llm.Generator) (skillFunc func(input llm.Content) (response llm.Content, err error)) {
 		skillFunc = func(input llm.Content) (llm.Content, error) {
-			// add system prompt to input if not already present
+			// add system at the beginning of the conversation (when there is no input's predecessor)
 			if input.Predecessor() == nil {
 				systemPrompt, err := llm.ExecuteTemplate(promptTemplate, input)
 				if err != nil {
