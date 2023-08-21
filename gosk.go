@@ -155,6 +155,10 @@ func (sk *SemanticKernel) CallWithName(input llm.Content, skillName string, skil
 // The given input (incl. all its properties) is passed to each function after it has been
 // updated with the previous function's response value.
 func (sk *SemanticKernel) Call(input llm.Content, functions ...*Function) (response llm.Content, err error) {
+	if len(functions) <= 0 {
+		err = errors.New("no functions to call")
+		return
+	}
 	initialValue := input.Value()
 	for _, function := range functions {
 		// if response, err = function.Call(context); err != nil {
