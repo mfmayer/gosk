@@ -3,7 +3,7 @@
   "name": "Joke",
   "description": "Generate a funny joke.",
   "inputProperties": {
-    "data": {
+    "": {
       "description": "Joke subject",
       "required": true
     },

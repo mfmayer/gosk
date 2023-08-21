@@ -16,84 +16,110 @@ To install the `gosk` module, use the following command:
 go get github.com/mfmayer/gosk
 ```
 
-## Usage
+## Basics
 
-`gosk` comes with a few exemplary `Skills`. Each `Skill` can contain one or more `SkillFunctions`.
+**`gosk`** defines **Generators**, **Skills** and **Skill-Functions**. Each **Skill** can have multiple **Functions** that can use **Generators** and **Prompt Templates** to make use of large language models (LLM) like OpenAI's GPT models.
 
-A `SkillFunction` is called with input `Content` and returns a response `Content`.
+**`gosk`** comes with a few exemplary skills and generators, which can be easily supplemented with your own.
+
+## Getting Started
+
+**`gosk`** includes the exemplary [`fun`](pkg/skills/fun/) skill with the [`joke`](pkg/skills/fun/assets/joke/) function, which defines two input properties:
+
+* The default input property as joke subject
+* An optional `style` input property
+
+The fun function can be used the following way (see also [cmd/joke/main.go](cmd/joke/main.go)):
 
 ```go
 package main
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/mfmayer/gosk"
+	"github.com/mfmayer/gosk/pkg/gpt"
+	"github.com/mfmayer/gosk/pkg/llm"
+	"github.com/mfmayer/gosk/pkg/skills/fun"
 )
 
 func main() {
-	kernel, err := gosk.NewKernel()
+	kernel := gosk.NewKernel()
+	kernel.RegisterGenerators(gpt.Register)
+	kernel.RegisterSkills(fun.Register)
+	functions, err := kernel.FindFunctions("fun.joke")
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-	skill, err := kernel.ImportSkill("FunSkill")
+	input := llm.NewContent("dinosaur").With("style", "One-Liner, no question")
+	response, err := kernel.Call(input, functions...)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-	sf := skill["Joke"]
-	response, err := sf("Engineer", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Printf("%v\n", response)
+	fmt.Println(response.String())
 }
 ```
 
-In the example above, a new Semantic Kernel is created, and a skill named "FunSkill" is imported into it. This skill contains a function Joke which takes two arguments, a subject and an additional context (which is left empty in this example). It returns a joke related to the subject, in this case, an "Engineer".
+Explanation:
+1) A new kernel is created and the `gpt` generator and `fun` skill are registered with it.
+2) The `fun` skill's `joke` function is found and returned (with a path annotation `<skill>.<function>`).
+3) The function input is created with:
+   * subject as default input property: `dinosaur`
+   * "style" input property: `One-Liner, no question`
+4) Function is called and response printed.
 
 The resulting joke is printed to the console. E.g.:
 
 ```bash
-Why did the engineer install a doorbell on his desk?
-
-Because he wanted to hear when opportunity knocked!
+"I told my boss I couldn't come to work because a dinosaur was blocking my driveway, but he didn't believe me, guess he thinks it's a Bronto-lie-rus."
 ```
 
 ## Skills and Functions
 
-Skills and their functions 
-
 ```mermaid
 classDiagram
 	
-	class Test {
-		<<interface>>
+	class Skill {
+		%%<<interface>>
+		+Name string
+		+Description string
+		+Plannable bool
+		+Functions map[string]*Function
+	}
+
+	class Function {
+		+Name string
+		+Description string
+		+Plannable bool
+		+InputProperties map[string]*Parameter
+		+Call func(input llm.Content) (output llm.Content, err error)
+	}
+
+	Skill "1" -- "*" Function
 	
-	}
-	
-	%%note "From Duck till Zebra"!
-	Animal <|-- Duck
-	note for Duck "can fly\ncan swim\ncan dive\ncan help in debugging"
-	Animal <|-- Fish
-	Animal <|-- Zebra
-	Animal : +int age
-	Animal : +String gender
-	Animal: +isMammal()
-	Animal: +mate()
-	class Duck{
-			+String beakColor
-			+swim()
-			+quack()
-	}
-	class Fish{
-			-int sizeInFeet
-			-canEat()
-	}
-	class Zebra{
-			+bool is_wild
-			+run()
-	}
+	%%%% 
+	%% note "From Duck till Zebra"!
+	%% Animal <|-- Duck
+	%% note for Duck "can fly\ncan swim\ncan dive\ncan help in debugging"
+	%% Animal <|-- Fish
+	%% Animal <|-- Zebra
+	%% Animal : +int age
+	%% Animal : +String gender
+	%% Animal: +isMammal()
+	%% Animal: +mate()
+	%% class Duck{
+	%% 		+String beakColor
+	%% 		+swim()
+	%% 		+quack()
+	%% }
+	%% class Fish{
+	%% 		-int sizeInFeet
+	%% 		-canEat()
+	%% }
+	%% class Zebra{
+	%% 		+bool is_wild
+	%% 		+run()
+	%% }
 ```
 
 ## Contributing

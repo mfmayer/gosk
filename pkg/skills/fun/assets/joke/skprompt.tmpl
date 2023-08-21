@@ -1,13 +1,11 @@
-WRITE EXACTLY ONE JOKE or HUMOROUS STORY ABOUT THE TOPIC BELOW
+Write exactly one joke or humorous story about the topic below
 
-JOKE MUST BE:
-- G RATED
-- WORKPLACE/FAMILY SAFE
-NO SEXISM, RACISM OR OTHER BIAS/BIGOTRY
+Joke must be:
+{{if .style}}* {{.style}}{{end}}
+* G Rated
+* Workplace and Family Safe
+* No sexism, racism or other bias/bigotry
 
-BE CREATIVE AND FUNNY. I WANT TO LAUGH.
-{{or .style ""}}
-+++++
+be createive and funny. I want to laugh.
 
-{{.Input}}
-+++++
+Topic: {{.}}
